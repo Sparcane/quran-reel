@@ -8,10 +8,16 @@
 // Run: `npm run build:data`
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pad3, SURAH_META } from '@quran/core';
 import type { SurahData, SurahMeta, Verse } from '@quran/core';
+import {
+  mergeTranslations,
+  readTranslationFile,
+  TRANSLATIONS,
+  writeTranslationsAttribution,
+} from './build-translations';
 
 export interface ParsedQuran {
   index: SurahMeta[];
@@ -144,16 +150,25 @@ if (isMain) {
   await mkdir(sourceDir, { recursive: true });
   const text = await ensureSource('quran-uthmani.txt', TANZIL_TEXT_URL);
   await ensureSource('quran-data.xml', TANZIL_META_URL);
+  await ensureSource(TRANSLATIONS.fr.file, TRANSLATIONS.fr.url);
+  await ensureSource(TRANSLATIONS.en.file, TRANSLATIONS.en.url);
 
   const attributionPath = join(sourceDir, 'ATTRIBUTION.md');
   if (!existsSync(attributionPath)) {
     await writeFile(attributionPath, ATTRIBUTION, 'utf8');
   }
+  await writeTranslationsAttribution(sourceDir);
 
-  const quran = parseTanzil(text);
+  const parsed = parseTanzil(text);
+  const merged = mergeTranslations(parsed.surahs, {
+    fr: await readTranslationFile(sourceDir, 'fr'),
+    en: await readTranslationFile(sourceDir, 'en'),
+  });
+  const surahs = parsed.index.map((surah) => merged[surah.number]);
+
   const outDir = join(root, 'apps', 'web', 'public', 'data');
-  await writeSurahs(quran, outDir);
+  await writeSurahs({ index: parsed.index, surahs }, outDir);
 
-  const verses = quran.surahs.reduce((total, surah) => total + surah.verses.length, 0);
-  console.log(`wrote ${quran.index.length} surahs, ${verses} verses → ${dirname(`${outDir}/x`)}`);
+  const verses = surahs.reduce((total, surah) => total + surah.verses.length, 0);
+  console.log(`wrote ${parsed.index.length} surahs, ${verses} verses → ${outDir}`);
 }
