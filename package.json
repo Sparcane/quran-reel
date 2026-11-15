@@ -2,6 +2,7 @@
   "name": "quran-studio",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -10,10 +11,12 @@
     "build": "npm run build -w @quran/web",
     "dev": "npm run dev -w @quran/web",
     "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "build:data": "node scripts/build-data.ts",
-    "verify:data": "node scripts/verify-data.ts"
+    "build:data": "tsx scripts/build-data.ts",
+    "verify:data": "tsx scripts/verify-data.ts",
+    "generate:catalog": "tsx scripts/generate-surah-meta.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
@@ -25,6 +28,7 @@
     "eslint": "^10.15.0",
     "jsdom": "^31.0.1",
     "prettier": "^3.10.1",
+    "tsx": "^4.23.15",
     "typescript": "~5.9.3",
     "vitest": "^5.1.0"
   }
