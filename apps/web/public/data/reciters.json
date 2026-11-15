@@ -1,0 +1,162 @@
+[
+  {
+    "id": "abdulbasit-murattal",
+    "folder": "Abdul_Basit_Murattal_192kbps",
+    "bitrate": 192,
+    "name": {
+      "fr": "Abdul Basit (Murattal)",
+      "en": "Abdul Basit (Murattal)",
+      "ar": "عبد الباسط عبد الصمد (مرتل)"
+    }
+  },
+  {
+    "id": "abdulbasit-mujawwad",
+    "folder": "Abdul_Basit_Mujawwad_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Abdul Basit (Mujawwad)",
+      "en": "Abdul Basit (Mujawwad)",
+      "ar": "عبد الباسط عبد الصمد (مجود)"
+    }
+  },
+  {
+    "id": "sudais",
+    "folder": "Abdurrahmaan_As-Sudais_192kbps",
+    "bitrate": 192,
+    "name": {
+      "fr": "Abdurrahman As-Sudais",
+      "en": "Abdurrahman As-Sudais",
+      "ar": "عبد الرحمن السديس"
+    }
+  },
+  {
+    "id": "shaatree",
+    "folder": "Abu_Bakr_Ash-Shaatree_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Abou Bakr Ash-Shaatree",
+      "en": "Abu Bakr Ash-Shaatree",
+      "ar": "أبو بكر الشاطري"
+    }
+  },
+  {
+    "id": "alafasy",
+    "folder": "Alafasy_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Mishary Alafasy",
+      "en": "Mishary Alafasy",
+      "ar": "مشاري العفاسي"
+    }
+  },
+  {
+    "id": "ghamadi",
+    "folder": "Ghamadi_40kbps",
+    "bitrate": 40,
+    "name": {
+      "fr": "Saad Al-Ghamdi",
+      "en": "Saad Al-Ghamdi",
+      "ar": "سعد الغامدي"
+    }
+  },
+  {
+    "id": "rifai",
+    "folder": "Hani_Rifai_192kbps",
+    "bitrate": 192,
+    "name": {
+      "fr": "Hani Ar-Rifai",
+      "en": "Hani Ar-Rifai",
+      "ar": "هاني الرفاعي"
+    }
+  },
+  {
+    "id": "hudhaify",
+    "folder": "Hudhaify_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Ali Al-Hudhaify",
+      "en": "Ali Al-Hudhaify",
+      "ar": "علي الحذيفي"
+    }
+  },
+  {
+    "id": "husary",
+    "folder": "Husary_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Mahmoud Khalil Al-Husary",
+      "en": "Mahmoud Khalil Al-Husary",
+      "ar": "محمود خليل الحصري"
+    }
+  },
+  {
+    "id": "maher",
+    "folder": "MaherAlMuaiqly128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Maher Al Muaiqly",
+      "en": "Maher Al Muaiqly",
+      "ar": "ماهر المعيقلي"
+    }
+  },
+  {
+    "id": "minshawy-murattal",
+    "folder": "Minshawy_Murattal_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Mohamed Al-Minshawi (Murattal)",
+      "en": "Mohamed Al-Minshawi (Murattal)",
+      "ar": "محمد صديق المنشاوي (مرتل)"
+    }
+  },
+  {
+    "id": "minshawy-mujawwad",
+    "folder": "Minshawy_Mujawwad_192kbps",
+    "bitrate": 192,
+    "name": {
+      "fr": "Mohamed Al-Minshawi (Mujawwad)",
+      "en": "Mohamed Al-Minshawi (Mujawwad)",
+      "ar": "محمد صديق المنشاوي (مجود)"
+    }
+  },
+  {
+    "id": "tablaway",
+    "folder": "Mohammad_al_Tablaway_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Mohammad Al-Tablaway",
+      "en": "Mohammad Al-Tablaway",
+      "ar": "محمد الطبلاوي"
+    }
+  },
+  {
+    "id": "ayyoub",
+    "folder": "Muhammad_Ayyoub_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Muhammad Ayyoub",
+      "en": "Muhammad Ayyoub",
+      "ar": "محمد أيوب"
+    }
+  },
+  {
+    "id": "shuraym",
+    "folder": "Saood_ash-Shuraym_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Saoud Ash-Shuraym",
+      "en": "Saud Ash-Shuraym",
+      "ar": "سعود الشريم"
+    }
+  },
+  {
+    "id": "dussary",
+    "folder": "Yasser_Ad-Dussary_128kbps",
+    "bitrate": 128,
+    "name": {
+      "fr": "Yasser Ad-Dussary",
+      "en": "Yasser Ad-Dussary",
+      "ar": "ياسر الدوسري"
+    }
+  }
+]
