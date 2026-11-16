@@ -1,0 +1,22 @@
+{
+  "library.title": "Library",
+  "library.subtitle": "The 114 surahs of the Quran, with the Uthmani text and two translations.",
+  "library.search.label": "Search for a surah",
+  "library.search.placeholder": "Name, number, Arabic…",
+  "library.count.one": "{{count}} surah",
+  "library.count.other": "{{count}} surahs",
+  "library.empty": "No surah found",
+  "surah.label": "Surah {{number}}",
+  "surah.meccan": "Meccan",
+  "surah.medinan": "Medinan",
+  "surah.verses.one": "{{count}} verse",
+  "surah.verses.other": "{{count}} verses",
+  "reader.verse": "Verse {{number}}",
+  "reader.selectVerse": "Select verse {{number}}",
+  "reader.selectAll": "Select all",
+  "reader.unselectAll": "Clear selection",
+  "reader.none": "No verse selected",
+  "reader.selected.one": "{{count}} verse selected",
+  "reader.selected.other": "{{count}} verses selected",
+  "reader.openStudio": "Open in the Studio"
+}

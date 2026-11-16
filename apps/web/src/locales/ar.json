@@ -1,0 +1,22 @@
+{
+  "library.title": "المكتبة",
+  "library.subtitle": "سور القرآن الكريم الـ114، بالنص العثماني وترجمتين.",
+  "library.search.label": "ابحث عن سورة",
+  "library.search.placeholder": "الاسم، الرقم، بالعربية…",
+  "library.count.one": "{{count}} سورة",
+  "library.count.other": "{{count}} سورة",
+  "library.empty": "لم يتم العثور على سورة",
+  "surah.label": "سورة {{number}}",
+  "surah.meccan": "مكية",
+  "surah.medinan": "مدنية",
+  "surah.verses.one": "{{count}} آية",
+  "surah.verses.other": "{{count}} آية",
+  "reader.verse": "الآية {{number}}",
+  "reader.selectVerse": "اختر الآية {{number}}",
+  "reader.selectAll": "اختيار الكل",
+  "reader.unselectAll": "إلغاء الاختيار",
+  "reader.none": "لم تُحدَّد أي آية",
+  "reader.selected.one": "{{count}} آية محددة",
+  "reader.selected.other": "{{count}} آية محددة",
+  "reader.openStudio": "افتح في الاستوديو"
+}

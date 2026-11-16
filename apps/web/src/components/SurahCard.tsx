@@ -1,7 +1,12 @@
+'use client';
+
 import Link from 'next/link';
 import type { SurahMeta } from '@quran/core';
+import { useT } from '@/lib/i18n';
 
 export function SurahCard({ surah }: { surah: SurahMeta }) {
+  const t = useT();
+
   return (
     <li>
       <Link
@@ -17,8 +22,10 @@ export function SurahCard({ surah }: { surah: SurahMeta }) {
         <span className="min-w-0 flex-1">
           <span className="block truncate text-base font-medium text-white">{surah.nameFr}</span>
           <span className="block text-sm text-white/60">
-            {surah.revelation === 'meccan' ? 'Mecquoise' : 'Médinoise'} · {surah.verseCount}{' '}
-            versets
+            {t(surah.revelation === 'meccan' ? 'surah.meccan' : 'surah.medinan')} ·{' '}
+            {t(surah.verseCount === 1 ? 'surah.verses.one' : 'surah.verses.other', {
+              count: surah.verseCount,
+            })}
           </span>
         </span>
         <span lang="ar" dir="rtl" className="shrink-0 text-xl text-white/90">

@@ -1,0 +1,22 @@
+{
+  "library.title": "Bibliothèque",
+  "library.subtitle": "Les 114 sourates du Coran, avec le texte uthmani et deux traductions.",
+  "library.search.label": "Rechercher une sourate",
+  "library.search.placeholder": "Nom, numéro, arabe…",
+  "library.count.one": "{{count}} sourate",
+  "library.count.other": "{{count}} sourates",
+  "library.empty": "Aucune sourate trouvée",
+  "surah.label": "Sourate {{number}}",
+  "surah.meccan": "Mecquoise",
+  "surah.medinan": "Médinoise",
+  "surah.verses.one": "{{count}} verset",
+  "surah.verses.other": "{{count}} versets",
+  "reader.verse": "Verset {{number}}",
+  "reader.selectVerse": "Sélectionner le verset {{number}}",
+  "reader.selectAll": "Tout sélectionner",
+  "reader.unselectAll": "Tout désélectionner",
+  "reader.none": "Aucun verset sélectionné",
+  "reader.selected.one": "{{count}} verset sélectionné",
+  "reader.selected.other": "{{count}} versets sélectionnés",
+  "reader.openStudio": "Ouvrir dans le Studio"
+}

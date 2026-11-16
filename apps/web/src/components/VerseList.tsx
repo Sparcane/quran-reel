@@ -8,6 +8,7 @@ import {
 } from '@tanstack/react-virtual';
 import type { SurahData, VerseRef } from '@quran/core';
 import { VerseRow } from '@/components/VerseRow';
+import { useT } from '@/lib/i18n';
 import {
   handoffSelection,
   MAX_MOUNTED_ROWS,
@@ -39,6 +40,7 @@ interface VerseListProps {
 }
 
 export function VerseList({ surah, onStudio }: VerseListProps) {
+  const t = useT();
   const [checked, setChecked] = useState<ReadonlySet<string>>(() => new Set());
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -95,9 +97,11 @@ export function VerseList({ surah, onStudio }: VerseListProps) {
     <div className="mx-auto w-full max-w-3xl px-4 py-8">
       <header className="mb-6">
         <p className="text-sm text-white/55">
-          Sourate {surah.number} ·{' '}
-          {surah.revelation === 'meccan' ? 'Mecquoise' : 'Médinoise'} · {surah.verseCount}{' '}
-          versets
+          {t('surah.label', { number: surah.number })} ·{' '}
+          {t(surah.revelation === 'meccan' ? 'surah.meccan' : 'surah.medinan')} ·{' '}
+          {t(surah.verseCount === 1 ? 'surah.verses.one' : 'surah.verses.other', {
+            count: surah.verseCount,
+          })}
         </p>
         <div className="mt-1 flex items-baseline justify-between gap-4">
           <h1 className="text-3xl font-semibold tracking-tight text-white">{surah.nameFr}</h1>
@@ -113,14 +117,14 @@ export function VerseList({ surah, onStudio }: VerseListProps) {
           onClick={toggleAll}
           className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
         >
-          {allSelected ? 'Tout désélectionner' : 'Tout sélectionner'}
+          {allSelected ? t('reader.unselectAll') : t('reader.selectAll')}
         </button>
         <p aria-live="polite" className="text-sm text-white/60">
           {selection.length === 0
-            ? 'Aucun verset sélectionné'
-            : `${selection.length} verset${selection.length === 1 ? '' : 's'} sélectionné${
-                selection.length === 1 ? '' : 's'
-              }`}
+            ? t('reader.none')
+            : t(selection.length === 1 ? 'reader.selected.one' : 'reader.selected.other', {
+                count: selection.length,
+              })}
         </p>
       </div>
 
@@ -158,7 +162,7 @@ export function VerseList({ surah, onStudio }: VerseListProps) {
           disabled={selection.length === 0}
           className="rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
         >
-          Ouvrir dans le Studio
+          {t('reader.openStudio')}
         </button>
       </div>
     </div>
