@@ -76,3 +76,12 @@ export function readHandoffSelection(): VerseRef[] {
     return [];
   }
 }
+
+/** Forgets the handoff once the studio has taken it. */
+export function clearHandoffSelection(): void {
+  try {
+    sessionStorage.removeItem(STUDIO_HANDOFF_KEY);
+  } catch {
+    // Private mode: nothing was stored in the first place.
+  }
+}
