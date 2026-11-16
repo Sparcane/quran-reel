@@ -5,12 +5,15 @@ import { dimensionsFor } from '@quran/core';
 import { AspectRatioPicker } from '../src/components/studio/AspectRatioPicker';
 import { BackgroundPicker } from '../src/components/studio/BackgroundPicker';
 import { ColorControls } from '../src/components/studio/ColorControls';
+import { PreviewButton } from '../src/components/studio/PreviewButton';
 import { StudioShell } from '../src/components/studio/StudioShell';
 import { TypographyControls } from '../src/components/studio/TypographyControls';
+import { PreviewPlayer } from '../src/lib/preview-audio';
 import { DEFAULT_STUDIO_SETTINGS } from '../src/lib/studio-settings';
 import { useStudioStore } from '../src/lib/studio-store';
 import { loadBackgroundAsset } from '../src/lib/storage';
 import { STUDIO_HANDOFF_KEY } from '../src/lib/verses';
+import { fakeAudio, fakeFetch } from './fake-audio';
 
 /** The eight bytes every PNG starts with; enough for the validator. */
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]);
@@ -225,5 +228,58 @@ describe('BackgroundPicker', () => {
     await waitFor(async () => {
       expect(await loadBackgroundAsset(background.assetId)).toBeNull();
     });
+  });
+});
+
+describe('PreviewButton', () => {
+  it('plays the selected verses, then stops on request', async () => {
+    const user = userEvent.setup();
+    const audio = fakeAudio();
+    audio.unblock();
+    const player = new PreviewPlayer(fakeFetch(), audio.factory);
+    useStudioStore.getState().setSelection([{ surah: 1, verse: 1 }]);
+    render(<PreviewButton createPlayer={() => player} />);
+
+    await user.click(screen.getByRole('button', { name: "Écouter l'aperçu" }));
+
+    expect(audio.sources).toHaveLength(1);
+    await user.click(await screen.findByRole('button', { name: 'Arrêter' }));
+
+    expect(audio.sources[0].stopped).toBe(true);
+    expect(screen.getByRole('button', { name: "Écouter l'aperçu" })).toBeInTheDocument();
+  });
+
+  it('asks for the click that unblocks sound instead of staying silent', async () => {
+    const user = userEvent.setup();
+    const audio = fakeAudio();
+    audio.block();
+    const player = new PreviewPlayer(fakeFetch(), audio.factory);
+    useStudioStore.getState().setSelection([{ surah: 1, verse: 1 }]);
+    render(<PreviewButton createPlayer={() => player} />);
+
+    await user.click(screen.getByRole('button', { name: "Écouter l'aperçu" }));
+
+    expect(await screen.findByText('Cliquez pour activer le son')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Activer le son' })).toBeInTheDocument();
+  });
+
+  it('says the recitation could not be downloaded', async () => {
+    const user = userEvent.setup();
+    const audio = fakeAudio();
+    audio.unblock();
+    const player = new PreviewPlayer(fakeFetch('001001.mp3'), audio.factory);
+    useStudioStore.getState().setSelection([{ surah: 1, verse: 1 }]);
+    render(<PreviewButton createPlayer={() => player} />);
+
+    await user.click(screen.getByRole('button', { name: "Écouter l'aperçu" }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/Vérifiez votre connexion/);
+    expect(screen.getByRole('button', { name: "Écouter l'aperçu" })).toBeEnabled();
+  });
+
+  it('cannot be pressed while no verse is selected', () => {
+    render(<PreviewButton />);
+
+    expect(screen.getByRole('button', { name: "Écouter l'aperçu" })).toBeDisabled();
   });
 });

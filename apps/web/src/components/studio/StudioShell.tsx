@@ -6,6 +6,7 @@ import { dimensionsFor } from '@quran/core';
 import { AspectRatioPicker } from '@/components/studio/AspectRatioPicker';
 import { BackgroundPicker } from '@/components/studio/BackgroundPicker';
 import { ColorControls } from '@/components/studio/ColorControls';
+import { PreviewButton } from '@/components/studio/PreviewButton';
 import { TypographyControls } from '@/components/studio/TypographyControls';
 import { useT } from '@/lib/i18n';
 import { adoptHandoffSelection, useStudioStore } from '@/lib/studio-store';
@@ -74,6 +75,9 @@ export function StudioShell() {
                   style={{ backgroundColor: `rgba(0, 0, 0, ${settings.overlayOpacity / 100})` }}
                 />
               </div>
+            </div>
+            <div className="mt-4">
+              <PreviewButton />
             </div>
           </section>
 
