@@ -40,5 +40,17 @@
   "studio.subtitleMode.verse": "الآية كاملة",
   "studio.subtitleMode.word": "كلمة بكلمة (تقدير)",
   "studio.textColor": "لون النص",
-  "studio.overlayOpacity": "تعتيم الخلفية"
+  "studio.overlayOpacity": "تعتيم الخلفية",
+  "studio.background.legend": "الخلفية",
+  "studio.background.preset.night": "ليل",
+  "studio.background.preset.dusk": "غروب",
+  "studio.background.preset.sand": "رمل",
+  "studio.background.import": "استيراد خلفية",
+  "studio.background.hint": "صيغة PNG أو JPEG أو WebP، أو فيديو MP4 بترميز H.264. يبقى الملف على جهازك.",
+  "studio.background.current": "الخلفية المستوردة: {{name}}",
+  "studio.background.remove": "إزالة",
+  "studio.background.error.type": "هذه الصيغة غير مدعومة. اختر PNG أو JPEG أو WebP أو فيديو MP4 بترميز H.264.",
+  "studio.background.error.codec": "هذا الفيديو غير مرمّز بـ H.264. أعد ترميزه بـ H.264 لاستخدامه خلفيةً.",
+  "studio.background.error.empty": "هذا الملف فارغ.",
+  "studio.background.error.storage": "تعذّر حفظ الملف على جهازك (المساحة غير كافية؟)."
 }

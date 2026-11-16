@@ -1,14 +1,19 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { dimensionsFor } from '@quran/core';
 import { AspectRatioPicker } from '../src/components/studio/AspectRatioPicker';
+import { BackgroundPicker } from '../src/components/studio/BackgroundPicker';
 import { ColorControls } from '../src/components/studio/ColorControls';
 import { StudioShell } from '../src/components/studio/StudioShell';
 import { TypographyControls } from '../src/components/studio/TypographyControls';
 import { DEFAULT_STUDIO_SETTINGS } from '../src/lib/studio-settings';
 import { useStudioStore } from '../src/lib/studio-store';
+import { loadBackgroundAsset } from '../src/lib/storage';
 import { STUDIO_HANDOFF_KEY } from '../src/lib/verses';
+
+/** The eight bytes every PNG starts with; enough for the validator. */
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]);
 
 beforeEach(() => {
   useStudioStore.setState({ selection: [], settings: DEFAULT_STUDIO_SETTINGS });
@@ -150,5 +155,75 @@ describe('StudioShell', () => {
     expect(await screen.findByText('1 verset dans la vidéo')).toBeInTheDocument();
     expect(useStudioStore.getState().selection).toEqual([{ surah: 36, verse: 1 }]);
     expect(await screen.findByLabelText('Format 9:16')).toBeInTheDocument();
+  });
+});
+
+describe('BackgroundPicker', () => {
+  it('offers the gradients that ship with the app', async () => {
+    const user = userEvent.setup();
+    render(<BackgroundPicker />);
+
+    await user.click(screen.getByLabelText('Crépuscule'));
+
+    const { background } = useStudioStore.getState().settings;
+    expect(background.kind).toBe('gradient');
+    expect(screen.getByLabelText('Crépuscule')).toBeChecked();
+    expect(screen.getByLabelText('Nuit')).not.toBeChecked();
+  });
+
+  it('imports a picture and keeps the bytes on the device, not in the draft', async () => {
+    const user = userEvent.setup();
+    render(<BackgroundPicker />);
+    const file = new File([PNG], 'mosquee.png', { type: 'image/png' });
+
+    await user.upload(screen.getByLabelText('Importer un fond'), file);
+
+    await waitFor(() => {
+      expect(useStudioStore.getState().settings.background.kind).toBe('image');
+    });
+    const background = useStudioStore.getState().settings.background;
+    if (background.kind !== 'image') throw new Error('expected an imported image');
+
+    expect(background.name).toBe('mosquee.png');
+    expect(background).not.toHaveProperty('blob');
+    const stored = await loadBackgroundAsset(background.assetId);
+    expect(stored?.name).toBe('mosquee.png');
+    expect(stored?.blob.size).toBe(file.size);
+    expect(await screen.findByText('Fond importé : mosquee.png')).toBeInTheDocument();
+  });
+
+  it('explains why a non-H.264 video was refused, and keeps the old background', async () => {
+    const user = userEvent.setup();
+    render(<BackgroundPicker />);
+    const bytes = new Uint8Array(64);
+    bytes.set([0, 0, 0, 0x18, ...new TextEncoder().encode('ftypisom')], 0);
+    bytes.set(new TextEncoder().encode('hvc1'), 32);
+    const hevc = new File([bytes], 'fond.mp4', { type: 'video/mp4' });
+
+    await user.upload(screen.getByLabelText('Importer un fond'), hevc);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/H\.264/);
+    expect(useStudioStore.getState().settings.background.kind).toBe('gradient');
+  });
+
+  it('drops an imported background when the user removes it', async () => {
+    const user = userEvent.setup();
+    render(<BackgroundPicker />);
+    await user.upload(
+      screen.getByLabelText('Importer un fond'),
+      new File([PNG], 'mosquee.png', { type: 'image/png' }),
+    );
+    await waitFor(() => {
+      expect(useStudioStore.getState().settings.background.kind).toBe('image');
+    });
+    const background = useStudioStore.getState().settings.background;
+    if (background.kind === 'gradient') throw new Error('expected an imported image');
+
+    await user.click(screen.getByRole('button', { name: 'Retirer' }));
+
+    expect(useStudioStore.getState().settings.background.kind).toBe('gradient');
+    await waitFor(async () => {
+      expect(await loadBackgroundAsset(background.assetId)).toBeNull();
+    });
   });
 });

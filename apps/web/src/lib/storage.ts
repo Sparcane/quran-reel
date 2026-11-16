@@ -11,8 +11,10 @@ import { toSelection } from '@/lib/verses';
 
 /** IndexedDB database that holds the studio's own records. */
 export const STUDIO_DB_NAME = 'quran-studio';
-export const STUDIO_DB_VERSION = 1;
+/** v2 added the `assets` store; v1 databases are upgraded in place. */
+export const STUDIO_DB_VERSION = 2;
 export const STUDIO_STORE_NAME = 'state';
+export const STUDIO_ASSET_STORE_NAME = 'assets';
 
 /** Key under which the studio draft lives in that database. */
 export const STUDIO_STORAGE_KEY = 'studio';
@@ -52,6 +54,9 @@ function studioDb(): Promise<IDBPDatabase<unknown>> {
       upgrade(db) {
         if (!db.objectStoreNames.contains(STUDIO_STORE_NAME)) {
           db.createObjectStore(STUDIO_STORE_NAME);
+        }
+        if (!db.objectStoreNames.contains(STUDIO_ASSET_STORE_NAME)) {
+          db.createObjectStore(STUDIO_ASSET_STORE_NAME);
         }
       },
     }).catch((error: unknown) => {
@@ -220,4 +225,97 @@ export function resetStudioStorage(): void {
   dbPromise = null;
   mirror = null;
   lastWrite = Promise.resolve();
+  memoryAssets.clear();
+}
+
+/** A picture or a video the user imported, kept as bytes on the device. */
+export interface BackgroundAsset {
+  id: string;
+  name: string;
+  mime: string;
+  blob: Blob;
+  savedAt: number;
+}
+
+/**
+ * The record actually written to IndexedDB. The bytes are stored as an
+ * `ArrayBuffer` rather than a `Blob`: the structured-clone implementations of
+ * older WebViews (and of the test's IndexedDB) do not always carry a `Blob`
+ * across, and a background that comes back empty is worse than one extra copy
+ * on the way in.
+ */
+interface StoredAsset {
+  id: string;
+  name: string;
+  mime: string;
+  bytes: ArrayBuffer;
+  savedAt: number;
+}
+
+function toAsset(record: StoredAsset): BackgroundAsset {
+  return {
+    id: record.id,
+    name: record.name,
+    mime: record.mime,
+    blob: new Blob([record.bytes], { type: record.mime }),
+    savedAt: record.savedAt,
+  };
+}
+
+/**
+ * Assets for environments without a working IndexedDB. A background is shown
+ * for the length of one session rather than refusing the import outright.
+ */
+const memoryAssets = new Map<string, StoredAsset>();
+
+function newAssetId(): string {
+  const cryptoRef = globalThis.crypto;
+  if (cryptoRef && typeof cryptoRef.randomUUID === 'function') return cryptoRef.randomUUID();
+  return `asset-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * Stores the imported file and returns its id. The settings only ever hold the
+ * id, so the draft stays small and the file never leaves the device.
+ */
+export async function saveBackgroundAsset(file: Blob, name: string): Promise<string> {
+  const asset: StoredAsset = {
+    id: newAssetId(),
+    name,
+    mime: file.type,
+    bytes: await file.arrayBuffer(),
+    savedAt: Date.now(),
+  };
+
+  try {
+    const db = await studioDb();
+    await db.put(STUDIO_ASSET_STORE_NAME, asset, asset.id);
+  } catch {
+    memoryAssets.set(asset.id, asset);
+  }
+  return asset.id;
+}
+
+/** Reads an imported file back, or null when it was removed or never saved. */
+export async function loadBackgroundAsset(id: string): Promise<BackgroundAsset | null> {
+  try {
+    const db = await studioDb();
+    const asset = (await db.get(STUDIO_ASSET_STORE_NAME, id)) as StoredAsset | undefined;
+    if (asset) return toAsset(asset);
+  } catch {
+    // Fall through to the session copy.
+  }
+  const asset = memoryAssets.get(id);
+  return asset ? toAsset(asset) : null;
+}
+
+/** Removes an imported file once no draft refers to it. */
+export async function deleteBackgroundAsset(id: string): Promise<void> {
+  memoryAssets.delete(id);
+  try {
+    const db = await studioDb();
+    await db.delete(STUDIO_ASSET_STORE_NAME, id);
+  } catch {
+    // Nothing else to clean up: the device copy was never written.
+  }
 }

@@ -40,5 +40,17 @@
   "studio.subtitleMode.verse": "Verset entier",
   "studio.subtitleMode.word": "Mot par mot (estimation)",
   "studio.textColor": "Couleur du texte",
-  "studio.overlayOpacity": "Assombrissement du fond"
+  "studio.overlayOpacity": "Assombrissement du fond",
+  "studio.background.legend": "Fond",
+  "studio.background.preset.night": "Nuit",
+  "studio.background.preset.dusk": "Crépuscule",
+  "studio.background.preset.sand": "Sable",
+  "studio.background.import": "Importer un fond",
+  "studio.background.hint": "PNG, JPEG ou WebP, ou un MP4 en H.264. Le fichier reste sur votre appareil.",
+  "studio.background.current": "Fond importé : {{name}}",
+  "studio.background.remove": "Retirer",
+  "studio.background.error.type": "Ce format n'est pas pris en charge. Choisissez un PNG, un JPEG, un WebP ou un MP4 en H.264.",
+  "studio.background.error.codec": "Cette vidéo n'est pas encodée en H.264. Réencodez-la en H.264 pour l'utiliser comme fond.",
+  "studio.background.error.empty": "Ce fichier est vide.",
+  "studio.background.error.storage": "Le fichier n'a pas pu être enregistré sur votre appareil (espace insuffisant ?)."
 }

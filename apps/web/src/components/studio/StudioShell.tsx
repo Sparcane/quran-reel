@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect } from 'react';
 import { dimensionsFor } from '@quran/core';
 import { AspectRatioPicker } from '@/components/studio/AspectRatioPicker';
+import { BackgroundPicker } from '@/components/studio/BackgroundPicker';
 import { ColorControls } from '@/components/studio/ColorControls';
 import { TypographyControls } from '@/components/studio/TypographyControls';
 import { useT } from '@/lib/i18n';
@@ -87,6 +88,7 @@ export function StudioShell() {
             <AspectRatioPicker />
             <TypographyControls />
             <ColorControls />
+            <BackgroundPicker />
           </form>
         </div>
       )}

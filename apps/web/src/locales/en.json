@@ -40,5 +40,17 @@
   "studio.subtitleMode.verse": "Whole verse",
   "studio.subtitleMode.word": "Word by word (estimated)",
   "studio.textColor": "Text colour",
-  "studio.overlayOpacity": "Background dimming"
+  "studio.overlayOpacity": "Background dimming",
+  "studio.background.legend": "Background",
+  "studio.background.preset.night": "Night",
+  "studio.background.preset.dusk": "Dusk",
+  "studio.background.preset.sand": "Sand",
+  "studio.background.import": "Import a background",
+  "studio.background.hint": "PNG, JPEG or WebP, or an H.264 MP4. The file stays on your device.",
+  "studio.background.current": "Imported background: {{name}}",
+  "studio.background.remove": "Remove",
+  "studio.background.error.type": "That format is not supported. Pick a PNG, a JPEG, a WebP or an H.264 MP4.",
+  "studio.background.error.codec": "That video is not encoded in H.264. Re-encode it in H.264 to use it as a background.",
+  "studio.background.error.empty": "That file is empty.",
+  "studio.background.error.storage": "The file could not be saved on your device (out of space?)."
 }
