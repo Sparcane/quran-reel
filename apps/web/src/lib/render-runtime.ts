@@ -61,12 +61,18 @@ export async function resumeRender(job: RenderJob): Promise<void> {
   // platform-agnostic queue. A render that did not finish is not a video the
   // user can watch again, so only a `done` job is kept.
   if (finished?.status !== 'done' || !finished.result) return;
-  await addToHistory({
-    id: finished.id,
-    createdAt: finished.createdAt,
-    size: finished.result.blob.size,
-    video: finished.result,
-  });
+  try {
+    await addToHistory({
+      id: finished.id,
+      createdAt: finished.createdAt,
+      size: finished.result.blob.size,
+      video: finished.result,
+    });
+  } catch (error) {
+    // The result page calls this fire-and-forget: an unhandled rejection would
+    // look like a render failure while the video itself is safe to watch.
+    console.error('history:', error);
+  }
 }
 
 /** A job still `running` after a restart is interrupted, not half-finished. */

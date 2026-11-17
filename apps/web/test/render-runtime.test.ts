@@ -78,4 +78,16 @@ describe('resumeRender', () => {
 
     expect(addToHistory).not.toHaveBeenCalled();
   });
+
+  it('survives a history write failure, since the render itself succeeded', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    runNext.mockResolvedValue(job('done'));
+    vi.mocked(addToHistory).mockRejectedValue(new Error('quota'));
+
+    // resumeRender is called fire-and-forget from the result page; a rejection
+    // here would be an unhandled promise rejection on a successful render.
+    await expect(resumeRender(job('done'))).resolves.toBeUndefined();
+    expect(error).toHaveBeenCalledWith('history:', expect.any(Error));
+    error.mockRestore();
+  });
 });

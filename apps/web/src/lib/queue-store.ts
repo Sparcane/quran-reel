@@ -12,6 +12,7 @@
 import type { BackgroundSelection, GradientSelection } from '@quran/core';
 import { createGradientPainter, deserialiseAudio, serialiseAudio } from '@quran/render';
 import type { JobStore, RenderedVideo, RenderJob, RenderSpec, WireVerseClip } from '@quran/render';
+import { createImportedBackground, type ImportedSelection } from '@/lib/background-painter';
 import { openStudioDatabase, STUDIO_JOB_STORE_NAME } from '@/lib/storage';
 
 const DEFAULT_BACKGROUND: GradientSelection = {
@@ -78,14 +79,34 @@ async function toStored(job: RenderJob): Promise<StoredJob> {
 
 async function fromStored(record: StoredJob): Promise<RenderJob> {
   const selection: BackgroundSelection = record.spec.backgroundSelection ?? DEFAULT_BACKGROUND;
-  // Only a gradient can be rebuilt without loading a device asset. An imported
-  // background is re-created by the studio when the user relaunches a job; a
-  // revived record only has to describe the job honestly until then.
+  const size = { width: record.spec.width, height: record.spec.height };
+  // Only a queued job is going to paint: a finished one is displayed from its
+  // stored bytes, so loading a device asset for it would only cost I/O — and
+  // would break displaying results the user deleted the background since.
+  const imported = selection.kind !== 'gradient' && record.status === 'queued';
   const gradient: GradientSelection = selection.kind === 'gradient' ? selection : DEFAULT_BACKGROUND;
-  const background = createGradientPainter(gradient, {
-    width: record.spec.width,
-    height: record.spec.height,
-  });
+  let background = createGradientPainter(gradient, size);
+  let failure: string | undefined;
+  if (imported) {
+    try {
+      // The timeline carries the lead-in; without one, the verse durations are
+      // the honest floor for how long the looped source must cover.
+      const durationSec =
+        record.spec.timeline?.totalSec ??
+        record.spec.verses.reduce((total, verse) => total + (verse.durationSec ?? 0), 0);
+      background = await createImportedBackground(
+        selection as ImportedSelection,
+        size,
+        durationSec,
+      );
+    } catch (error) {
+      // A missing asset must not turn into the default gradient: that would
+      // render a video that silently contradicts the user's choice. The record
+      // stays queued on the device so "Relancer" can retry once it is back.
+      background = createGradientPainter(DEFAULT_BACKGROUND, size);
+      failure = error instanceof Error ? error.message : String(error);
+    }
+  }
 
   let result: RenderedVideo | undefined;
   if (record.result) {
@@ -109,9 +130,9 @@ async function fromStored(record: StoredJob): Promise<RenderJob> {
         audio: deserialiseAudio(verse.audio),
       })),
     },
-    status: record.status,
+    status: failure ? 'failed' : record.status,
     progress: record.progress,
-    error: record.error,
+    error: failure ?? record.error,
     createdAt: record.createdAt,
     startedAt: record.startedAt,
     finishedAt: record.finishedAt,
