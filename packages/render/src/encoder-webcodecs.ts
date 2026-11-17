@@ -35,7 +35,7 @@ export interface EncodedVideoChunkLike extends EncodedChunkLike {
 export interface VideoEncoderInitLike {
   output: (
     chunk: EncodedVideoChunkLike,
-    metadata?: { decoderConfig?: { description?: Uint8Array } },
+    metadata?: { decoderConfig?: { description?: Uint8Array | ArrayBuffer } },
   ) => void;
   error: (error: Error) => void;
 }
@@ -43,7 +43,7 @@ export interface VideoEncoderInitLike {
 export interface AudioEncoderInitLike {
   output: (
     chunk: EncodedChunkLike,
-    metadata?: { decoderConfig?: { description?: Uint8Array } },
+    metadata?: { decoderConfig?: { description?: Uint8Array | ArrayBuffer } },
   ) => void;
   error: (error: Error) => void;
 }

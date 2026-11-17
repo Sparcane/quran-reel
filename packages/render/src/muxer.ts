@@ -104,6 +104,19 @@ function u64(value: number | bigint): Uint8Array {
   return out;
 }
 
+/**
+ * WebCodecs reports a decoder description as a `Uint8Array` on the main thread
+ * but as an `ArrayBuffer` inside a worker. Both carry the same bytes; only a
+ * real `Uint8Array` has `.length`, which the box writer relies on. Without this
+ * normalisation an ArrayBuffer silently produced an empty avcC and an
+ * undecodable file.
+ */
+function descriptionBytes(description: Uint8Array | ArrayBuffer | undefined): Uint8Array | null {
+  if (!description) return null;
+  const bytes = description instanceof Uint8Array ? description : new Uint8Array(description);
+  return bytes.byteLength > 0 ? bytes.slice() : null;
+}
+
 function ascii(text: string): Uint8Array {
   const out = new Uint8Array(text.length);
   for (let index = 0; index < text.length; index += 1) {
@@ -385,16 +398,17 @@ export class Mp4Muxer {
   }
 
   /** The `avcC` bytes reported with the first encoded video chunk. */
-  setVideoDescription(description: Uint8Array | undefined): void {
-    if (!description || description.length === 0) {
+  setVideoDescription(description: Uint8Array | ArrayBuffer | undefined): void {
+    const bytes = descriptionBytes(description);
+    if (!bytes) {
       throw new Error('muxer: the video encoder did not report an avcC description');
     }
-    this.videoDescription = description.slice();
+    this.videoDescription = bytes;
   }
 
   /** The AudioSpecificConfig reported with the first encoded audio chunk. */
-  setAudioDescription(description: Uint8Array | undefined): void {
-    if (description && description.length > 0) this.audioDescription = description.slice();
+  setAudioDescription(description: Uint8Array | ArrayBuffer | undefined): void {
+    this.audioDescription = descriptionBytes(description);
   }
 
   hasVideoDescription(): boolean {

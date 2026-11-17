@@ -141,6 +141,31 @@ describe('Mp4Muxer header', () => {
     expect(brands).toContain('avc1');
   });
 
+  it('writes the real avcC when the encoder reports an ArrayBuffer description', () => {
+    // Chrome's EncodedVideoChunkMetadata carries an ArrayBuffer in a worker.
+    // Treating it as a Uint8Array made concat() read `.length` (undefined) and
+    // write an empty avcC: the file looked fine but no player could decode it.
+    const muxer = new Mp4Muxer({
+      video: { codec: 'avc1.42001f', width: 640, height: 360 },
+      durationUs: 1_000_000,
+    });
+    muxer.setVideoDescription(AVC_C.buffer.slice(0) as ArrayBuffer);
+
+    const avcC = descend(readBoxes(muxer.buildHeader()), 'moov', 'trak', 'mdia', 'minf', 'stbl', 'stsd', 'avc1', 'avcC');
+    expect([...avcC.payload]).toEqual([...AVC_C]);
+  });
+
+  it('writes the real ASC when the encoder reports an ArrayBuffer description', () => {
+    const muxer = muxerWithBothTracks();
+    const asc = audioSpecificConfig(48000, 2);
+    muxer.setAudioDescription(asc.buffer.slice(0) as ArrayBuffer);
+
+    const tracks = children(readBoxes(muxer.buildHeader())[1]).filter((box) => box.type === 'trak');
+    const mp4a = children(descend([tracks[1]], 'trak', 'mdia', 'minf', 'stbl', 'stsd'))[0];
+    const esds = children(mp4a).find((box) => box.type === 'esds')!;
+    expect(contains(esds.payload, Uint8Array.of(0x05, 0x02, ...asc))).toBe(true);
+  });
+
   it('describes a video track with the avcC the encoder produced', () => {
     const bytes = muxerWithBothTracks().buildHeader();
     const top = readBoxes(bytes);
