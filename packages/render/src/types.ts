@@ -1,3 +1,7 @@
+import type { Timeline } from '@quran/core';
+import type { BackgroundPainter } from './background';
+import type { VerseClip } from './encoder-plan';
+
 /**
  * The look of the subtitles, shared by the text layout and the compositor.
  *
@@ -24,6 +28,24 @@ export interface SubtitleStyle {
   translationGap: number;
   /** Margin on the left and right of the frame, in pixels. */
   marginX: number;
+}
+
+/** What the studio asks the renderer to make, before a plan exists. */
+export interface RenderSpec {
+  width: number;
+  height: number;
+  fps: 30 | 60;
+  verses: VerseClip[];
+  style: SubtitleStyle;
+  background: BackgroundPainter;
+  /** Built from the verse lengths when the caller has no timeline yet. */
+  timeline?: Timeline;
+  /** StudioSettings' 0–100 unit. */
+  overlayOpacity?: number;
+  centerY?: number;
+  watermark?: string;
+  /** The caller's ceiling. It can only lower the hard 900 s limit. */
+  maxDurationSec: number;
 }
 
 /** How far a render has got, in frames and in percent. */
