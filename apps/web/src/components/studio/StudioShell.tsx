@@ -6,6 +6,7 @@ import { dimensionsFor } from '@quran/core';
 import { AspectRatioPicker } from '@/components/studio/AspectRatioPicker';
 import { BackgroundPicker } from '@/components/studio/BackgroundPicker';
 import { ColorControls } from '@/components/studio/ColorControls';
+import { DraftsMenu } from '@/components/studio/DraftsMenu';
 import { PreviewButton } from '@/components/studio/PreviewButton';
 import { TypographyControls } from '@/components/studio/TypographyControls';
 import { useT } from '@/lib/i18n';
@@ -40,6 +41,10 @@ export function StudioShell() {
           {width} × {height}
         </p>
       </header>
+
+      <div className="mb-8">
+        <DraftsMenu />
+      </div>
 
       {count === 0 ? (
         <section className="rounded-2xl border border-white/10 bg-white/5 p-8 text-center">

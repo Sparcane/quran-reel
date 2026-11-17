@@ -11,10 +11,11 @@ import { toSelection } from '@/lib/verses';
 
 /** IndexedDB database that holds the studio's own records. */
 export const STUDIO_DB_NAME = 'quran-studio';
-/** v2 added the `assets` store; v1 databases are upgraded in place. */
-export const STUDIO_DB_VERSION = 2;
+/** v2 added the `assets` store, v3 the `drafts` store; older databases upgrade in place. */
+export const STUDIO_DB_VERSION = 3;
 export const STUDIO_STORE_NAME = 'state';
 export const STUDIO_ASSET_STORE_NAME = 'assets';
+export const STUDIO_DRAFT_STORE_NAME = 'drafts';
 
 /** Key under which the studio draft lives in that database. */
 export const STUDIO_STORAGE_KEY = 'studio';
@@ -48,7 +49,12 @@ export function createMemoryStorage(): StateStorage {
 
 let dbPromise: Promise<IDBPDatabase<unknown>> | null = null;
 
-function studioDb(): Promise<IDBPDatabase<unknown>> {
+/**
+ * One connection per tab, shared by the studio draft, the imported assets and
+ * the saved drafts. Exported so `drafts.ts` does not redeclare the database
+ * name and version (two copies would drift apart at the next schema change).
+ */
+export function openStudioDatabase(): Promise<IDBPDatabase<unknown>> {
   if (dbPromise === null) {
     dbPromise = openDB(STUDIO_DB_NAME, STUDIO_DB_VERSION, {
       upgrade(db) {
@@ -57,6 +63,9 @@ function studioDb(): Promise<IDBPDatabase<unknown>> {
         }
         if (!db.objectStoreNames.contains(STUDIO_ASSET_STORE_NAME)) {
           db.createObjectStore(STUDIO_ASSET_STORE_NAME);
+        }
+        if (!db.objectStoreNames.contains(STUDIO_DRAFT_STORE_NAME)) {
+          db.createObjectStore(STUDIO_DRAFT_STORE_NAME);
         }
       },
     }).catch((error: unknown) => {
@@ -71,16 +80,16 @@ function studioDb(): Promise<IDBPDatabase<unknown>> {
 function createIdbStorage(): StateStorage {
   return {
     async getItem(name) {
-      const db = await studioDb();
+      const db = await openStudioDatabase();
       const value: unknown = await db.get(STUDIO_STORE_NAME, name);
       return typeof value === 'string' ? value : null;
     },
     async setItem(name, value) {
-      const db = await studioDb();
+      const db = await openStudioDatabase();
       await db.put(STUDIO_STORE_NAME, value, name);
     },
     async removeItem(name) {
-      const db = await studioDb();
+      const db = await openStudioDatabase();
       await db.delete(STUDIO_STORE_NAME, name);
     },
   };
@@ -288,7 +297,7 @@ export async function saveBackgroundAsset(file: Blob, name: string): Promise<str
   };
 
   try {
-    const db = await studioDb();
+    const db = await openStudioDatabase();
     await db.put(STUDIO_ASSET_STORE_NAME, asset, asset.id);
   } catch {
     memoryAssets.set(asset.id, asset);
@@ -299,7 +308,7 @@ export async function saveBackgroundAsset(file: Blob, name: string): Promise<str
 /** Reads an imported file back, or null when it was removed or never saved. */
 export async function loadBackgroundAsset(id: string): Promise<BackgroundAsset | null> {
   try {
-    const db = await studioDb();
+    const db = await openStudioDatabase();
     const asset = (await db.get(STUDIO_ASSET_STORE_NAME, id)) as StoredAsset | undefined;
     if (asset) return toAsset(asset);
   } catch {
@@ -313,7 +322,7 @@ export async function loadBackgroundAsset(id: string): Promise<BackgroundAsset |
 export async function deleteBackgroundAsset(id: string): Promise<void> {
   memoryAssets.delete(id);
   try {
-    const db = await studioDb();
+    const db = await openStudioDatabase();
     await db.delete(STUDIO_ASSET_STORE_NAME, id);
   } catch {
     // Nothing else to clean up: the device copy was never written.

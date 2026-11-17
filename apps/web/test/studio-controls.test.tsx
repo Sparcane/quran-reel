@@ -5,9 +5,11 @@ import { dimensionsFor } from '@quran/core';
 import { AspectRatioPicker } from '../src/components/studio/AspectRatioPicker';
 import { BackgroundPicker } from '../src/components/studio/BackgroundPicker';
 import { ColorControls } from '../src/components/studio/ColorControls';
+import { DraftsMenu } from '../src/components/studio/DraftsMenu';
 import { PreviewButton } from '../src/components/studio/PreviewButton';
 import { StudioShell } from '../src/components/studio/StudioShell';
 import { TypographyControls } from '../src/components/studio/TypographyControls';
+import { deleteDraft, listDrafts, saveDraft } from '../src/lib/drafts';
 import { PreviewPlayer } from '../src/lib/preview-audio';
 import { DEFAULT_STUDIO_SETTINGS } from '../src/lib/studio-settings';
 import { useStudioStore } from '../src/lib/studio-store';
@@ -228,6 +230,82 @@ describe('BackgroundPicker', () => {
     await waitFor(async () => {
       expect(await loadBackgroundAsset(background.assetId)).toBeNull();
     });
+  });
+});
+
+describe('DraftsMenu', () => {
+  // jsdom has no IndexedDB, so drafts live in the session fallback shared by
+  // every test in this file. Each test starts from an empty list.
+  beforeEach(async () => {
+    for (const draft of await listDrafts()) await deleteDraft(draft.id);
+  });
+
+  it('saves the current verses under the name the user typed', async () => {
+    const user = userEvent.setup();
+    useStudioStore.getState().setSelection([
+      { surah: 36, verse: 1 },
+      { surah: 36, verse: 2 },
+    ]);
+    render(<DraftsMenu />);
+
+    await user.type(screen.getByLabelText('Nom du brouillon'), 'Yassin');
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText('Yassin')).toBeInTheDocument();
+    expect(screen.getByText(/2 versets/)).toBeInTheDocument();
+    const drafts = await listDrafts();
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0].selection).toEqual([
+      { surah: 36, verse: 1 },
+      { surah: 36, verse: 2 },
+    ]);
+  });
+
+  it('falls back to a dated name when the user leaves it blank', async () => {
+    const user = userEvent.setup();
+    useStudioStore.getState().setSelection([{ surah: 1, verse: 1 }]);
+    render(<DraftsMenu />);
+
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }));
+
+    expect(await screen.findByText(/^Brouillon du /)).toBeInTheDocument();
+    const [draft] = await listDrafts();
+    expect(draft.name).toMatch(/^Brouillon du /);
+  });
+
+  it('reopens a saved draft with its verses and its look', async () => {
+    const user = userEvent.setup();
+    await saveDraft({
+      name: 'Kahf',
+      selection: [{ surah: 18, verse: 1 }],
+      settings: { ...DEFAULT_STUDIO_SETTINGS, arabicSize: 100, aspectRatio: '16:9' },
+    });
+    render(<DraftsMenu />);
+
+    await user.click(await screen.findByRole('button', { name: 'Ouvrir Kahf' }));
+
+    const { selection, settings } = useStudioStore.getState();
+    expect(selection).toEqual([{ surah: 18, verse: 1 }]);
+    expect(settings.arabicSize).toBe(100);
+    expect(settings.aspectRatio).toBe('16:9');
+  });
+
+  it('deletes a draft and says the list is empty again', async () => {
+    const user = userEvent.setup();
+    await saveDraft({
+      name: 'Kahf',
+      selection: [{ surah: 18, verse: 1 }],
+      settings: DEFAULT_STUDIO_SETTINGS,
+    });
+    render(<DraftsMenu />);
+
+    await user.click(await screen.findByRole('button', { name: 'Supprimer Kahf' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Kahf')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('Aucun brouillon enregistré.')).toBeInTheDocument();
+    expect(await listDrafts()).toHaveLength(0);
   });
 });
 

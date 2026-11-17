@@ -58,5 +58,17 @@
   "studio.background.error.type": "Ce format n'est pas pris en charge. Choisissez un PNG, un JPEG, un WebP ou un MP4 en H.264.",
   "studio.background.error.codec": "Cette vidéo n'est pas encodée en H.264. Réencodez-la en H.264 pour l'utiliser comme fond.",
   "studio.background.error.empty": "Ce fichier est vide.",
-  "studio.background.error.storage": "Le fichier n'a pas pu être enregistré sur votre appareil (espace insuffisant ?)."
+  "studio.background.error.storage": "Le fichier n'a pas pu être enregistré sur votre appareil (espace insuffisant ?).",
+  "studio.drafts.title": "Brouillons",
+  "studio.drafts.name": "Nom du brouillon",
+  "studio.drafts.placeholder": "Yassin, sourate 36…",
+  "studio.drafts.save": "Enregistrer",
+  "studio.drafts.open": "Ouvrir",
+  "studio.drafts.delete": "Supprimer",
+  "studio.drafts.empty": "Aucun brouillon enregistré.",
+  "studio.drafts.defaultName": "Brouillon du {{date}}",
+  "studio.drafts.verses.one": "{{count}} verset",
+  "studio.drafts.verses.other": "{{count}} versets",
+  "studio.drafts.updated": "Modifié le {{date}}",
+  "studio.drafts.error": "Les brouillons ne sont pas accessibles sur cet appareil."
 }

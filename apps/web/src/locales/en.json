@@ -58,5 +58,17 @@
   "studio.background.error.type": "That format is not supported. Pick a PNG, a JPEG, a WebP or an H.264 MP4.",
   "studio.background.error.codec": "That video is not encoded in H.264. Re-encode it in H.264 to use it as a background.",
   "studio.background.error.empty": "That file is empty.",
-  "studio.background.error.storage": "The file could not be saved on your device (out of space?)."
+  "studio.background.error.storage": "The file could not be saved on your device (out of space?).",
+  "studio.drafts.title": "Drafts",
+  "studio.drafts.name": "Draft name",
+  "studio.drafts.placeholder": "Yasin, surah 36…",
+  "studio.drafts.save": "Save",
+  "studio.drafts.open": "Open",
+  "studio.drafts.delete": "Delete",
+  "studio.drafts.empty": "No saved drafts yet.",
+  "studio.drafts.defaultName": "Draft of {{date}}",
+  "studio.drafts.verses.one": "{{count}} verse",
+  "studio.drafts.verses.other": "{{count}} verses",
+  "studio.drafts.updated": "Edited {{date}}",
+  "studio.drafts.error": "Drafts are not available on this device."
 }

@@ -58,5 +58,17 @@
   "studio.background.error.type": "هذه الصيغة غير مدعومة. اختر PNG أو JPEG أو WebP أو فيديو MP4 بترميز H.264.",
   "studio.background.error.codec": "هذا الفيديو غير مرمّز بـ H.264. أعد ترميزه بـ H.264 لاستخدامه خلفيةً.",
   "studio.background.error.empty": "هذا الملف فارغ.",
-  "studio.background.error.storage": "تعذّر حفظ الملف على جهازك (المساحة غير كافية؟)."
+  "studio.background.error.storage": "تعذّر حفظ الملف على جهازك (المساحة غير كافية؟).",
+  "studio.drafts.title": "المسوّدات",
+  "studio.drafts.name": "اسم المسوّدة",
+  "studio.drafts.placeholder": "يس، سورة 36…",
+  "studio.drafts.save": "حفظ",
+  "studio.drafts.open": "فتح",
+  "studio.drafts.delete": "حذف",
+  "studio.drafts.empty": "لا توجد مسوّدات محفوظة.",
+  "studio.drafts.defaultName": "مسوّدة {{date}}",
+  "studio.drafts.verses.one": "{{count}} آية",
+  "studio.drafts.verses.other": "{{count}} آيات",
+  "studio.drafts.updated": "عُدّلت في {{date}}",
+  "studio.drafts.error": "المسوّدات غير متاحة على هذا الجهاز."
 }
