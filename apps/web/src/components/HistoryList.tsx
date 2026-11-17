@@ -57,7 +57,7 @@ export function HistoryList() {
             <li key={entry.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
               <div>
                 <p className="text-sm text-white/80">{formatDate(entry.createdAt)}</p>
-                <p className="text-xs tabular-nums text-white/50">
+                <p className="text-xs tabular-nums text-muted">
                   {Math.round(entry.video.durationSec)} s · {formatSize(entry.size)} ·{' '}
                   {entry.video.width} × {entry.video.height}
                 </p>

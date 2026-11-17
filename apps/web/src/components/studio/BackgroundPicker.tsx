@@ -133,7 +133,7 @@ export function BackgroundPicker() {
           }}
           className="block w-full cursor-pointer rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/70 file:mr-3 file:rounded file:border-0 file:bg-sky-500 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-950"
         />
-        <p className="mt-1 text-xs text-white/50">{t('studio.background.hint')}</p>
+        <p className="mt-1 text-xs text-muted">{t('studio.background.hint')}</p>
       </div>
 
       {background.kind !== 'gradient' ? (

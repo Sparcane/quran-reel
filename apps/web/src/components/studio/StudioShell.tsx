@@ -38,7 +38,7 @@ export function StudioShell() {
               : null}
           </p>
         </div>
-        <p className="text-sm tabular-nums text-white/45">
+        <p className="text-sm tabular-nums text-muted">
           {width} × {height}
         </p>
       </header>

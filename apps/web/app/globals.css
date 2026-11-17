@@ -1,5 +1,11 @@
 @import 'tailwindcss';
 
+/* Muted text on the dark background: #a1a1a1 on #0a0a0a is 7.7:1 (WCAG AA).
+   Using one token keeps every secondary label above the 4.5:1 minimum. */
+@theme {
+  --color-muted: #a1a1a1;
+}
+
 :root {
   color-scheme: dark;
   --background: #0a0a0a;

@@ -55,7 +55,7 @@ export function NumberField({
           onBlur={() => setDraft(null)}
           className="w-24 rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-base tabular-nums text-white focus-visible:border-sky-400 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-sky-400"
         />
-        {suffix ? <span className="text-sm text-white/50">{suffix}</span> : null}
+        {suffix ? <span className="text-sm text-muted">{suffix}</span> : null}
       </div>
     </div>
   );

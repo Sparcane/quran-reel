@@ -104,14 +104,14 @@ export function DraftsMenu() {
           type="button"
           onClick={() => void save()}
           disabled={selection.length === 0 || busy}
-          className="rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+          className="rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
         >
           {t('studio.drafts.save')}
         </button>
       </div>
 
       {drafts.length === 0 ? (
-        <p className="mt-3 text-sm text-white/50">{t('studio.drafts.empty')}</p>
+        <p className="mt-3 text-sm text-muted">{t('studio.drafts.empty')}</p>
       ) : (
         <ul className="mt-3 divide-y divide-white/10">
           {drafts.map((draft) => (
@@ -121,7 +121,7 @@ export function DraftsMenu() {
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-white">{draft.name}</p>
-                <p className="text-xs text-white/50">
+                <p className="text-xs text-muted">
                   {t(
                     draft.selection.length === 1
                       ? 'studio.drafts.verses.one'

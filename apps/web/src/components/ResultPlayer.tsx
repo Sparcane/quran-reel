@@ -132,7 +132,7 @@ export function RenduPage({ job, onRetry }: RenduPageProps) {
         </section>
       ) : null}
 
-      <p className="mt-8 text-sm text-white/50">
+      <p className="mt-8 text-sm text-muted">
         <Link href="/studio/" className="underline underline-offset-2 hover:text-white">
           {t('rendu.back')}
         </Link>

@@ -23,7 +23,7 @@ export function SurahSearch({ value, onChange, count }: SurahSearchProps) {
         onChange={(event) => onChange(event.target.value)}
         placeholder={t('library.search.placeholder')}
         autoComplete="off"
-        className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-base text-white placeholder:text-white/50 focus-visible:border-sky-400 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-sky-400"
+        className="w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-base text-white placeholder:text-muted focus-visible:border-sky-400 focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-sky-400"
       />
       <p aria-live="polite" className="mt-2 text-sm text-white/60">
         {t(count === 1 ? 'library.count.one' : 'library.count.other', { count })}

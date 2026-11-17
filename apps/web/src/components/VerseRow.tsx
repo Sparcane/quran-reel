@@ -33,7 +33,7 @@ export function VerseRow({ surah, verse, selected, onToggle }: VerseRowProps) {
           className="mt-1 size-5 shrink-0 accent-sky-400"
         />
         <span className="min-w-0 flex-1">
-          <span className="mb-1 block text-xs tabular-nums text-white/45">
+          <span className="mb-1 block text-xs tabular-nums text-muted">
             {t('reader.verse', { number: verse.number })}
           </span>
           <span

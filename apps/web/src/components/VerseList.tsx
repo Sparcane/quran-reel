@@ -94,7 +94,7 @@ export function VerseList({ surah, onStudio }: VerseListProps) {
   };
 
   return (
-    <div className="mx-auto w-full max-w-3xl px-4 py-8">
+    <main className="mx-auto w-full max-w-3xl px-4 py-8">
       <header className="mb-6">
         <p className="text-sm text-white/55">
           {t('surah.label', { number: surah.number })} ·{' '}
@@ -160,12 +160,12 @@ export function VerseList({ surah, onStudio }: VerseListProps) {
           type="button"
           onClick={openStudio}
           disabled={selection.length === 0}
-          className="rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-white/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
+          className="rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400 disabled:cursor-not-allowed disabled:bg-white/10 disabled:text-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400"
         >
           {t('reader.openStudio')}
         </button>
       </div>
-    </div>
+    </main>
   );
 }
 
