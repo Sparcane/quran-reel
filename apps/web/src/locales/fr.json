@@ -84,5 +84,10 @@
   "history.title": "Vidéos récentes",
   "history.empty": "Aucune vidéo enregistrée pour le moment.",
   "history.view": "Voir",
-  "history.delete": "Supprimer"
+  "history.delete": "Supprimer",
+  "share.title": "Vidéo Quran Studio",
+  "share.button": "Partager",
+  "share.shared": "Partagé",
+  "share.downloaded": "Téléchargé",
+  "share.error": "Le partage a échoué. Réessayez ou utilisez Télécharger."
 }

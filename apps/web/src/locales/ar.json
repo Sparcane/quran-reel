@@ -84,5 +84,10 @@
   "history.title": "الفيديوهات الأخيرة",
   "history.empty": "لا توجد فيديوهات محفوظة بعد.",
   "history.view": "عرض",
-  "history.delete": "حذف"
+  "history.delete": "حذف",
+  "share.title": "فيديو استوديو القرآن",
+  "share.button": "مشاركة",
+  "share.shared": "تمت المشاركة",
+  "share.downloaded": "تم التنزيل",
+  "share.error": "فشلت المشاركة. أعد المحاولة أو استخدم التنزيل."
 }

@@ -4,7 +4,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { RenderJob } from '@quran/render';
+import { ShareButton } from '@/components/ShareButton';
 import { useT } from '@/lib/i18n';
+import { videoToFile } from '@/lib/share';
 
 /** A blob URL, revoked when the job changes or the page leaves. */
 function useObjectUrl(blob: Blob | undefined): string {
@@ -123,6 +125,9 @@ export function RenduPage({ job, onRetry }: RenduPageProps) {
               {job.result.width} × {job.result.height} · {job.result.durationSec.toFixed(1)} s ·{' '}
               {job.result.container.toUpperCase()}
             </p>
+          </div>
+          <div className="mt-4">
+            <ShareButton file={videoToFile(job.result, job.id)} title={t('share.title')} />
           </div>
         </section>
       ) : null}
