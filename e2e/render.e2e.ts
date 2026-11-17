@@ -71,5 +71,34 @@ test('parcours complet : 3 versets → MP4', async ({ page }) => {
 
   const head = readFileSync(file!).subarray(0, 12);
   expect(head.toString('ascii', 4, 8)).toBe('ftyp');
+
+  // A done job must stop being polled. Every read rebuilds the Blob and its
+  // object URL, and a changing <video src> restarts playback from zero.
+  const player = page.locator('video');
+  const src = await player.getAttribute('src');
+  expect(src).toBeTruthy();
+  await page.waitForTimeout(1_300);
+  expect(await player.getAttribute('src')).toBe(src);
+
+  // A header that merely says "ftyp" is not enough. WebCodecs reports its
+  // avcC as an ArrayBuffer inside the worker; writing it as a Uint8Array gave an
+  // empty description and a file Chrome could not decode at all.
+  await player.evaluate((element: HTMLVideoElement) => {
+    element.muted = true;
+    return element.play();
+  });
+  await page.waitForFunction(
+    () => ((document.querySelector('video') as HTMLVideoElement | null)?.currentTime ?? 0) > 0,
+    undefined,
+    { timeout: 10_000 },
+  );
+  expect(await player.evaluate((element: HTMLVideoElement) => element.error?.message ?? '')).toBe('');
+
+  // The finished render must really reach the history; an empty list here was
+  // the second production bug the review found (addToHistory was never called).
+  await page.getByRole('link', { name: /Retour au Studio/ }).click();
+  await expect(page.getByRole('heading', { name: /Vidéos récentes/ })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Voir', exact: true }).first()).toBeVisible();
+
   expect(errors).toEqual([]);
 });

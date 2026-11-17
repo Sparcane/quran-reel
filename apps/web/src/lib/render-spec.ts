@@ -21,6 +21,7 @@ import type { BackgroundSelection, SurahData, Timeline, VerseRef } from '@quran/
 import {
   createGradientPainter,
   createImagePainter,
+  createVideoPainter,
   type BackgroundPainter,
   type PlanarAudio,
   type RenderSpec,
@@ -38,6 +39,8 @@ export interface RenderSpecDeps {
   loadAudio(url: string): Promise<PlanarAudio>;
   loadBackground(assetId: string): Promise<{ blob: Blob } | null>;
   createBitmap(blob: Blob): Promise<ImageBitmap>;
+  /** Decodes an imported MP4/H.264 into a painter for the render thread. */
+  createVideo(blob: Blob, size: Size, durationSec: number): Promise<BackgroundPainter>;
 }
 
 /** The device-backed implementation: local text, EveryAyah audio, Web Audio. */
@@ -67,6 +70,9 @@ export function browserRenderSpecDeps(): RenderSpecDeps {
     async createBitmap(blob) {
       return createImageBitmap(blob);
     },
+    async createVideo(blob, size, durationSec) {
+      return createVideoPainter(blob, size, durationSec);
+    },
   };
 }
 
@@ -74,6 +80,7 @@ async function createBackground(
   selection: BackgroundSelection,
   size: Size,
   deps: RenderSpecDeps,
+  durationSec: number,
 ): Promise<BackgroundPainter> {
   if (selection.kind === 'gradient') return createGradientPainter(selection, size);
   if (selection.kind === 'image') {
@@ -81,9 +88,11 @@ async function createBackground(
     if (!asset) throw new Error('render: le fond importé n’est plus sur cet appareil');
     return createImagePainter(await deps.createBitmap(asset.blob), size);
   }
-  // A video background needs a decoder in the render thread; that path is not
-  // wired yet and saying so is better than silently rendering a wrong picture.
-  throw new Error('render: les fonds vidéo importés ne sont pas encore pris en charge');
+  // The worker only rebuilds gradients, so an imported background keeps the
+  // render on the main thread where its real painter (and asset bytes) live.
+  const asset = await deps.loadBackground(selection.assetId);
+  if (!asset) throw new Error('render: le fond vidéo importé n’est plus sur cet appareil');
+  return deps.createVideo(asset.blob, size, durationSec);
 }
 
 function styleFor(settings: StudioSettings, width: number): SubtitleStyle {
@@ -123,7 +132,17 @@ export async function buildRenderSpec(
     const verse = byNumber.get(ref.surah)?.verses.find((candidate) => candidate.number === ref.verse);
     if (!verse) throw new Error(`render: verse ${ref.surah}:${ref.verse} is not in the shipped text`);
 
-    const audio = await deps.loadAudio(audioUrl(reciter, ref));
+    let audio: PlanarAudio;
+    try {
+      audio = await deps.loadAudio(audioUrl(reciter, ref));
+    } catch (error) {
+      // A multi-verse render must say which recitation failed. Keeping the
+      // original message (and cause) preserves the HTTP or decode detail.
+      const detail = error instanceof Error ? error.message : String(error);
+      throw new Error(`render: récitation introuvable pour ${ref.surah}:${ref.verse} — ${detail}`, {
+        cause: error,
+      });
+    }
     verses.push({
       arabic: verse.arabic,
       translation: settings.showTranslation ? verse.translations[settings.translationLang] : '',
@@ -146,7 +165,14 @@ export async function buildRenderSpec(
   }
 
   const { width, height } = dimensionsFor(settings.aspectRatio);
-  const background = await createBackground(settings.background, { width, height }, deps);
+  // The decoded source is looped by the painter; capping the decode at the
+  // render's length avoids holding frames the user will never see.
+  const background = await createBackground(
+    settings.background,
+    { width, height },
+    deps,
+    timeline.totalSec,
+  );
 
   return {
     width,

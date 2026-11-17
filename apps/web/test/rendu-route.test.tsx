@@ -109,4 +109,14 @@ describe('RenduRoute', () => {
     expect(await screen.findByText(/en attente/i)).toBeInTheDocument();
     expect(resumeRender).toHaveBeenCalledWith(queued);
   });
+
+  it('stops polling once the job is done, so the player URL is not recreated', async () => {
+    render(<RenduRoute />);
+    await screen.findByRole('video', {}, { timeout: 3000 });
+
+    const callsWhenDone = getJob.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+
+    expect(getJob.mock.calls.length).toBe(callsWhenDone);
+  });
 });

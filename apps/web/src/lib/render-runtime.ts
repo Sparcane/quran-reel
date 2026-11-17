@@ -13,6 +13,7 @@ import {
   type RenderWorkerLike,
   type VideoRenderer,
 } from '@quran/render';
+import { addToHistory } from '@/lib/history';
 import { jobStore } from '@/lib/queue-store';
 
 export const renderQueue = createQueue(jobStore);
@@ -52,11 +53,20 @@ export async function startRender(spec: RenderSpec): Promise<RenderJob> {
 
 /** Pumps the oldest queued job from the page that now owns it. */
 export async function resumeRender(job: RenderJob): Promise<void> {
-  if (!renderQueue.isBusy()) {
-    // A render outlives the click that started it; the result page polls the
-    // store for progress rather than holding this promise.
-    await renderQueue.runNext(rendererFor(job.spec));
-  }
+  if (renderQueue.isBusy()) return;
+  // A render outlives the click that started it; the result page polls the
+  // store for progress rather than holding this promise.
+  const finished = await renderQueue.runNext(rendererFor(job.spec));
+  // The history lives here, in the web layer that owns IndexedDB, not in the
+  // platform-agnostic queue. A render that did not finish is not a video the
+  // user can watch again, so only a `done` job is kept.
+  if (finished?.status !== 'done' || !finished.result) return;
+  await addToHistory({
+    id: finished.id,
+    createdAt: finished.createdAt,
+    size: finished.result.blob.size,
+    video: finished.result,
+  });
 }
 
 /** A job still `running` after a restart is interrupted, not half-finished. */

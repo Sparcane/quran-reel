@@ -3,6 +3,7 @@ import { buildTimeline, type Timeline, type WordTiming } from '@quran/core';
 import { createGradientPainter, type BackgroundPainter } from '../src/background';
 import { Compositor, type PreparedVerse } from '../src/compositor';
 import type { SubtitleStyle } from '../src/types';
+import surah2 from '../../../apps/web/public/data/surahs/002.json';
 
 const style: SubtitleStyle = {
   arabicFamily: 'Uthmanic Hafs',
@@ -134,6 +135,32 @@ describe('Compositor', () => {
     expect(drawn[0]).toMatchObject({ x: 100, font: '40px "Uthmanic Hafs"', fillStyle: '#ffffff' });
     expect(drawn[1]).toMatchObject({ x: 100, font: '20px Inter', fillStyle: '#ffffff' });
     expect(drawn[0].y).toBeLessThan(drawn[1].y);
+  });
+
+  it('shrinks the longest verse so its translation stays inside the frame', () => {
+    const source = surah2.verses.find((candidate) => candidate.number === 282);
+    if (!source) throw new Error('fixture: 2:282 is missing from the shipped data');
+    const bigStyle: SubtitleStyle = {
+      ...style,
+      arabicSize: 64,
+      translationSize: 30,
+      lineHeight: 1.5,
+      translationGap: 24,
+      marginX: 72,
+    };
+    const { canvas, operations } = recordingCanvas(20, 1080, 1920);
+    const compositor = new Compositor(canvas, bigStyle, background(1080, 1920));
+    compositor.prepare(
+      [{ arabic: source.arabic, translation: source.translations.fr, words: null }],
+      buildTimeline([5]),
+    );
+    compositor.drawAt(1);
+
+    const drawn = texts(operations);
+    expect(drawn.length).toBeGreaterThan(2);
+    expect(drawn.every((operation) => operation.y >= 0 && operation.y <= 1920)).toBe(true);
+    const arabicFont = drawn.find((operation) => operation.text.includes('ال الذين')) ?? drawn[0];
+    expect(Number.parseInt(arabicFont.font, 10)).toBeLessThan(bigStyle.arabicSize);
   });
 
   it('keeps verses apart: nothing in the gap, then the next verse', () => {

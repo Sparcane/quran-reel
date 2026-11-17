@@ -56,6 +56,9 @@ interface WordPlacement {
 interface PreparedFrame {
   arabic: LaidOutText;
   translation: LaidOutText;
+  /** Fonts of the fitted style: the longest verse can need a smaller size. */
+  arabicFont: string;
+  translationFont: string;
   arabicTop: number;
   translationTop: number;
   /** null in verse mode. */
@@ -79,8 +82,6 @@ export class Compositor {
   private readonly overlayOpacity: number;
   private readonly centerY: number;
   private readonly watermark: string | null;
-  private readonly arabicFont: string;
-  private readonly translationFont: string;
   private readonly watermarkFont: string;
 
   private frames: PreparedFrame[] | null = null;
@@ -114,8 +115,6 @@ export class Compositor {
     this.overlayOpacity = overlayOpacity;
     this.centerY = centerY;
     this.watermark = options.watermark?.trim() ? options.watermark.trim() : null;
-    this.arabicFont = cssFont(style.arabicFamily, style.arabicSize);
-    this.translationFont = cssFont(style.translationFamily, style.translationSize);
     this.watermarkFont = cssFont(
       style.translationFamily,
       Math.round(style.translationSize * 0.75),
@@ -149,6 +148,10 @@ export class Compositor {
     if (!Number.isFinite(maxWidth) || maxWidth <= 0) {
       throw new Error('compositor: marginX leaves no room for text in the frame');
     }
+    const maxHeight = frameHeight - this.style.marginX * 2;
+    if (!Number.isFinite(maxHeight) || maxHeight <= 0) {
+      throw new Error('compositor: marginX leaves no height for text in the frame');
+    }
 
     this.frames = verses.map((verse, index) => {
       const entry = timeline.entries.find((candidate) => candidate.clipIndex === index);
@@ -156,26 +159,55 @@ export class Compositor {
         throw new Error(`compositor: the timeline has no entry for verse ${index}`);
       }
 
-      const arabic = layoutArabic(verse.arabic, this.ctx, this.style, maxWidth);
-      // The Arabic font is now active on the context, so spaces are measured
-      // with the font the Arabic words will be painted in.
-      const spaceWidth = this.ctx.measureText(' ').width;
-      const translation = layoutTranslation(verse.translation, this.ctx, this.style, maxWidth);
+      const layoutWith = (style: SubtitleStyle) => {
+        const arabic = layoutArabic(verse.arabic, this.ctx, style, maxWidth);
+        // The Arabic font is now active on the context, so spaces are measured
+        // with the font the Arabic words will be painted in.
+        const spaceWidth = this.ctx.measureText(' ').width;
+        const translation = layoutTranslation(verse.translation, this.ctx, style, maxWidth);
+        const gap =
+          arabic.lines.length > 0 && translation.lines.length > 0 ? style.translationGap : 0;
+        return {
+          arabic,
+          translation,
+          spaceWidth,
+          gap,
+          blockHeight: arabic.totalHeight + gap + translation.totalHeight,
+          arabicFont: cssFont(style.arabicFamily, style.arabicSize),
+          translationFont: cssFont(style.translationFamily, style.translationSize),
+        };
+      };
 
-      const hasArabic = arabic.lines.length > 0;
-      const hasTranslation = translation.lines.length > 0;
-      const gap = hasArabic && hasTranslation ? this.style.translationGap : 0;
-      const blockHeight = arabic.totalHeight + gap + translation.totalHeight;
-      const arabicTop = frameHeight * this.centerY - blockHeight / 2;
-      const translationTop = arabicTop + arabic.totalHeight + gap;
+      let block = layoutWith(this.style);
+      if (block.blockHeight > maxHeight) {
+        // 2:282 is three times longer than an average verse. Without a fit the
+        // Arabic block pushes the translation out of the frame; shrink the
+        // whole block once, in prepare, so drawAt stays a pure paint call.
+        const scale = maxHeight / block.blockHeight;
+        const fitted: SubtitleStyle = {
+          ...this.style,
+          arabicSize: Math.max(1, Math.floor(this.style.arabicSize * scale)),
+          translationSize: Math.max(1, Math.floor(this.style.translationSize * scale)),
+          translationGap: Math.floor(this.style.translationGap * scale),
+        };
+        block = layoutWith(fitted);
+      }
+
+      const arabicTop = Math.max(
+        0,
+        Math.min(frameHeight - block.blockHeight, frameHeight * this.centerY - block.blockHeight / 2),
+      );
+      const translationTop = arabicTop + block.arabic.totalHeight + block.gap;
 
       const words = verse.words
-        ? this.placeWords(verse.words, arabic, arabicTop, spaceWidth)
+        ? this.placeWords(verse.words, block.arabic, arabicTop, block.spaceWidth, block.arabicFont)
         : null;
 
       return {
-        arabic,
-        translation,
+        arabic: block.arabic,
+        translation: block.translation,
+        arabicFont: block.arabicFont,
+        translationFont: block.translationFont,
         arabicTop,
         translationTop,
         words,
@@ -196,6 +228,7 @@ export class Compositor {
     arabic: LaidOutText,
     arabicTop: number,
     spaceWidth: number,
+    font: string,
   ): WordPlacement[] {
     const words = arabic.lines.flatMap((line) => line.split(' '));
     if (words.length !== timings.length) {
@@ -204,7 +237,7 @@ export class Compositor {
       );
     }
 
-    this.ctx.font = this.arabicFont;
+    this.ctx.font = font;
     this.ctx.direction = 'rtl';
     this.ctx.textAlign = 'center';
 
@@ -274,7 +307,7 @@ export class Compositor {
     ctx.textBaseline = 'middle';
 
     if (frame.arabic.lines.length > 0) {
-      ctx.font = this.arabicFont;
+      ctx.font = frame.arabicFont;
       ctx.direction = 'rtl';
 
       if (frame.words) {
@@ -298,7 +331,7 @@ export class Compositor {
     }
 
     if (frame.translation.lines.length > 0) {
-      ctx.font = this.translationFont;
+      ctx.font = frame.translationFont;
       ctx.direction = 'ltr';
       ctx.fillStyle = this.style.textColor;
       frame.translation.lines.forEach((line, index) => {

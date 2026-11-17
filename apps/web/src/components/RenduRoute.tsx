@@ -47,7 +47,19 @@ export function RenduRoute() {
       // document and survives until the video is finished.
       if (found?.status === 'queued') void resumeRender(found);
     })();
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
+  // Reading a job rebuilds its Blob (and the player's object URL). Polling a
+  // finished job would therefore change the <video src> twice a second and
+  // restart playback forever, while copying the whole file on every tick.
+  const status = job?.status;
+  const pending = status === 'queued' || status === 'running';
+  useEffect(() => {
+    if (!pending) return;
+    let alive = true;
     const timer = window.setInterval(() => {
       void jobStore.get(id).then((found) => {
         if (alive) setJob(found ?? null);
@@ -57,7 +69,7 @@ export function RenduRoute() {
       alive = false;
       window.clearInterval(timer);
     };
-  }, [id]);
+  }, [id, pending]);
 
   if (job === undefined) {
     return (

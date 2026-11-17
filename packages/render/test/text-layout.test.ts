@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import surah2 from '../../../apps/web/public/data/surahs/002.json';
+
+// 2:282 (the debt verse) is the longest in the Quran: 1173 characters, 128
+// words. 2:286 is much shorter (404 characters). The layout must be proven
+// against the real worst case, not a convenient later verse.
+
 import { layoutArabic, layoutTranslation } from '../src/text-layout';
 import type { SubtitleStyle } from '../src/types';
 
@@ -30,8 +35,8 @@ const style: SubtitleStyle = {
   marginX: 72,
 };
 
-const longest = surah2.verses.find((verse) => verse.number === 286)?.arabic;
-if (!longest) throw new Error('fixture: 2:286 is missing from the shipped data');
+const longest = surah2.verses.find((verse) => verse.number === 282)?.arabic;
+if (!longest) throw new Error('fixture: 2:282 is missing from the shipped data');
 
 describe('layoutArabic', () => {
   it('wraps the longest verse in the Quran into readable lines', () => {

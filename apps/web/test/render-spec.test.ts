@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import type { PlanarAudio } from '@quran/render';
+import { describe, expect, it, vi } from 'vitest';
+import type { BackgroundPainter, PlanarAudio } from '@quran/render';
 import { buildRenderSpec, type RenderSpecDeps } from '@/lib/render-spec';
 import type { SurahData } from '@quran/core';
 import { DEFAULT_STUDIO_SETTINGS } from '@/lib/studio-settings';
@@ -38,6 +38,7 @@ function deps(overrides: Partial<RenderSpecDeps> = {}): RenderSpecDeps {
     loadAudio: async () => audio(1),
     loadBackground: async () => null,
     createBitmap: async () => ({}) as ImageBitmap,
+    createVideo: async () => ({ ready: true, paint() {}, dispose() {} }) as BackgroundPainter,
     ...overrides,
   };
 }
@@ -99,6 +100,44 @@ describe('buildRenderSpec', () => {
     await expect(
       buildRenderSpec([{ surah: 36, verse: 99 }], DEFAULT_STUDIO_SETTINGS, deps()),
     ).rejects.toThrow(/36:99/);
+  });
+
+  it('names the verse whose recitation could not be loaded', async () => {
+    await expect(
+      buildRenderSpec(
+        selection,
+        DEFAULT_STUDIO_SETTINGS,
+        deps({
+          loadAudio: async () => {
+            throw new Error('HTTP 404');
+          },
+        }),
+      ),
+    ).rejects.toThrow(/36:1.*HTTP 404/);
+  });
+
+  it('wires an imported H.264 background into the render spec', async () => {
+    const blob = new Blob(['video'], { type: 'video/mp4' });
+    const createVideo = vi.fn(
+      async () => ({ ready: true, paint() {}, dispose() {} }) as BackgroundPainter,
+    );
+
+    const spec = await buildRenderSpec(
+      [selection[0]],
+      {
+        ...DEFAULT_STUDIO_SETTINGS,
+        background: { kind: 'video', assetId: 'asset-1', name: 'fond.mp4' },
+      },
+      deps({ loadBackground: async () => ({ blob }), createVideo }),
+    );
+
+    expect(createVideo).toHaveBeenCalledWith(
+      blob,
+      { width: 1080, height: 1920 },
+      spec.timeline.totalSec,
+    );
+    expect(spec.background.ready).toBe(true);
+    expect(spec.backgroundSelection).toMatchObject({ kind: 'video', assetId: 'asset-1' });
   });
 
   it('leaves the translation out when the setting is off', async () => {
