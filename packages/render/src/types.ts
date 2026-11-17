@@ -25,3 +25,24 @@ export interface SubtitleStyle {
   /** Margin on the left and right of the frame, in pixels. */
   marginX: number;
 }
+
+/** How far a render has got, in frames and in percent. */
+export interface Progress {
+  frame: number;
+  totalFrames: number;
+  /** 0 to 100, monotone. */
+  percent: number;
+  /** Estimated seconds left, from the speed so far. */
+  etaSec: number;
+}
+
+/** The file a render produced. */
+export interface RenderedVideo {
+  blob: Blob;
+  durationSec: number;
+  width: number;
+  height: number;
+  container: 'mp4' | 'webm';
+  /** Family name of the picture codec, e.g. `avc1` or `vp9`. */
+  videoCodec: string;
+}
