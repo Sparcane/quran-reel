@@ -295,21 +295,25 @@ export function createRenderer(
   };
 }
 
-/** The browser/native environment: a real module worker and the real codecs. */
-export function defaultRendererEnvironment(): RendererEnvironment {
+/**
+ * The browser/native environment: real codecs and device storage.
+ *
+ * The worker factory is injected because a bundler must see the
+ * `new Worker(new URL(...))` call in the app that owns the worker file: placed
+ * in a workspace package resolved through node_modules, Turbopack follows the
+ * URL through the symlink forever. Callers that do not need offloading (tests,
+ * direct encoder use) get inline rendering by default.
+ */
+export function defaultRendererEnvironment(
+  createWorker: () => RenderWorkerLike | null = () => null,
+): RendererEnvironment {
   const globals = globalThis as {
-    Worker?: typeof Worker;
     showSaveFilePicker?: unknown;
   };
   const storage = typeof navigator === 'undefined' ? undefined : navigator.storage;
 
   return {
-    createWorker: () =>
-      typeof globals.Worker === 'function'
-        ? (new Worker(new URL('./worker.ts', import.meta.url), {
-            type: 'module',
-          }) as unknown as RenderWorkerLike)
-        : null,
+    createWorker,
     capabilities: {
       webCodecs: webCodecsAvailable(),
       mediaRecorder: mediaRecorderAvailable(),
@@ -326,17 +330,3 @@ export function defaultRendererEnvironment(): RendererEnvironment {
   };
 }
 
-// A module worker evaluates this file as its entry. A page (and jsdom) has a
-// `document`, so the message handler is installed only inside the worker.
-const workerGlobal = globalThis as unknown as {
-  document?: unknown;
-  WorkerGlobalScope?: unknown;
-  postMessage?: unknown;
-};
-if (
-  typeof workerGlobal.document === 'undefined' &&
-  typeof workerGlobal.WorkerGlobalScope !== 'undefined' &&
-  typeof workerGlobal.postMessage === 'function'
-) {
-  installWorkerHandler(globalThis as unknown as Parameters<typeof installWorkerHandler>[0]);
-}

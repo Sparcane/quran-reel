@@ -70,5 +70,15 @@
   "studio.drafts.verses.one": "{{count}} verse",
   "studio.drafts.verses.other": "{{count}} verses",
   "studio.drafts.updated": "Edited {{date}}",
-  "studio.drafts.error": "Drafts are not available on this device."
+  "studio.drafts.error": "Drafts are not available on this device.",
+  "rendu.title": "Render",
+  "rendu.queued": "Waiting to render…",
+  "rendu.rendering": "Rendering",
+  "rendu.failed": "The render failed",
+  "rendu.failed.unknown": "An unknown error interrupted the render.",
+  "rendu.cancelled": "Render cancelled",
+  "rendu.retry": "Relaunch the render",
+  "rendu.download": "Download the video",
+  "rendu.player": "Rendered video",
+  "rendu.back": "Back to the Studio"
 }

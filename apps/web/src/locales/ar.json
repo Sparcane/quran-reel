@@ -70,5 +70,15 @@
   "studio.drafts.verses.one": "{{count}} آية",
   "studio.drafts.verses.other": "{{count}} آيات",
   "studio.drafts.updated": "عُدّلت في {{date}}",
-  "studio.drafts.error": "المسوّدات غير متاحة على هذا الجهاز."
+  "studio.drafts.error": "المسوّدات غير متاحة على هذا الجهاز.",
+  "rendu.title": "النتيجة",
+  "rendu.queued": "في انتظار المعالجة…",
+  "rendu.rendering": "جارٍ إنشاء الفيديو",
+  "rendu.failed": "فشل إنشاء الفيديو",
+  "rendu.failed.unknown": "قاطَعَ العملَ خطأٌ غير معروف.",
+  "rendu.cancelled": "أُلغي الإنشاء",
+  "rendu.retry": "إعادة الإنشاء",
+  "rendu.download": "تنزيل الفيديو",
+  "rendu.player": "الفيديو الناتج",
+  "rendu.back": "العودة إلى الاستوديو"
 }

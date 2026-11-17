@@ -70,5 +70,15 @@
   "studio.drafts.verses.one": "{{count}} verset",
   "studio.drafts.verses.other": "{{count}} versets",
   "studio.drafts.updated": "Modifié le {{date}}",
-  "studio.drafts.error": "Les brouillons ne sont pas accessibles sur cet appareil."
+  "studio.drafts.error": "Les brouillons ne sont pas accessibles sur cet appareil.",
+  "rendu.title": "Rendu",
+  "rendu.queued": "En attente de rendu…",
+  "rendu.rendering": "Rendu en cours",
+  "rendu.failed": "Le rendu a échoué",
+  "rendu.failed.unknown": "Une erreur inconnue a interrompu le rendu.",
+  "rendu.cancelled": "Rendu annulé",
+  "rendu.retry": "Relancer le rendu",
+  "rendu.download": "Télécharger la vidéo",
+  "rendu.player": "Vidéo rendue",
+  "rendu.back": "Retour au Studio"
 }
