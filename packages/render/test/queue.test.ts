@@ -230,6 +230,24 @@ describe('createQueue', () => {
     expect(recovered?.progress).toBe(55);
   });
 
+  it('leaves a job alone while this very queue is rendering it', async () => {
+    // The result page recovers stale jobs on mount. Right after "Générer" the
+    // job is running in THIS tab, not interrupted in a previous one; a naive
+    // recover() used to fail it and the download link never appeared.
+    const store = createMemoryJobStore();
+    const queue = createQueue(store, { newId: () => 'active', now: () => 1 });
+    await queue.enqueue(spec('active'));
+    const renderer = hangingRenderer();
+    const running = queue.runNext(renderer);
+    await renderer.started;
+
+    await queue.recover();
+
+    expect((await queue.getJob('active'))?.status).toBe('running');
+    renderer.reject(new Error('stop'));
+    await running;
+  });
+
   it('leaves finished jobs untouched during recovery', async () => {
     const store = createMemoryJobStore();
     const done: RenderJob = {

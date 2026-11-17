@@ -10,7 +10,10 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   reporter: 'list',
+  // The end-to-end journey needs a real origin for workers, OPFS and codecs;
+  // `file://` is not a secure context. Serve the static export on localhost.
   use: {
+    baseURL: 'http://127.0.0.1:3100',
     // The machine's own Chrome can encode H.264 and AAC; the browsers Playwright
     // downloads are often built without the proprietary codecs.
     channel: 'chrome',
@@ -20,5 +23,13 @@ export default defineConfig({
       // track decodes; headless Chrome refuses that by default.
       args: ['--autoplay-policy=no-user-gesture-required'],
     },
+  },
+  webServer: {
+    // Rebuild first so the journey always exercises the current source, then
+    // serve the export. Reuse a server left from a previous run when present.
+    command: 'npm run build && node e2e/serve.cjs',
+    url: 'http://127.0.0.1:3100/bibliotheque/',
+    reuseExistingServer: true,
+    timeout: 300_000,
   },
 });

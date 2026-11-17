@@ -9,6 +9,7 @@
  */
 
 import { buildTimeline, MAX_VIDEO_SECONDS } from '@quran/core';
+import { deserialiseEncodePlan, serialiseEncodePlan, type WireEncodePlan } from './audio-wire';
 import type { BackgroundPainter } from './background';
 import {
   EncoderUnavailableError,
@@ -52,11 +53,20 @@ export interface RenderWorkerRequest {
   fileName: string;
 }
 
+/** The same request after serialisation, as it actually crosses `postMessage`. */
+export interface WireRenderWorkerRequest {
+  kind: 'render';
+  id: number;
+  plan: WireEncodePlan;
+  sinkKind: SinkKind;
+  fileName: string;
+}
+
 export interface CancelWorkerRequest {
   kind: 'cancel';
 }
 
-export type WorkerRequest = RenderWorkerRequest | CancelWorkerRequest;
+export type WorkerRequest = RenderWorkerRequest | WireRenderWorkerRequest | CancelWorkerRequest;
 
 /** Messages sent back from the worker to the main thread. */
 export type WorkerResponse =
@@ -126,6 +136,7 @@ export function planFromSpec(spec: RenderSpec): EncodePlan {
     verses: spec.verses,
     style: spec.style,
     background: spec.background,
+    backgroundSelection: spec.backgroundSelection,
     timeline,
     overlayOpacity: spec.overlayOpacity,
     centerY: spec.centerY,
@@ -159,8 +170,12 @@ export async function runWorkerJob(
   isCancelled: () => boolean,
   deps: WorkerJobDeps = defaultWorkerDeps(),
 ): Promise<void> {
-  const sink = await deps.createSink(request.sinkKind, request.fileName);
+  let sink: OutputSink | null = null;
   try {
+    // Sink creation is part of the job: if it throws, the caller still needs an
+    // answer. Leaving it outside the try used to hang the render promise on the
+    // main thread with no error ever posted back.
+    sink = await deps.createSink(request.sinkKind, request.fileName);
     const video = await deps.encode('webcodecs', request.plan, sink, (progress) => {
       if (isCancelled()) throw new RenderCancelledError();
       post({ kind: 'progress', id: request.id, progress });
@@ -168,7 +183,7 @@ export async function runWorkerJob(
     if (isCancelled()) throw new RenderCancelledError();
     post({ kind: 'done', id: request.id, video });
   } catch (error) {
-    await sink.abort().catch(() => undefined);
+    if (sink) await sink.abort().catch(() => undefined);
     if (error instanceof RenderCancelledError) {
       post({ kind: 'cancelled', id: request.id });
       return;
@@ -194,7 +209,13 @@ export function installWorkerHandler(scope: {
       return;
     }
     cancelled = false;
-    void runWorkerJob(message, (response) => scope.postMessage(response), () => cancelled);
+    // The plan arrived as a structured clone: audio is channel arrays and the
+    // painter is a plain selection. Give the encoder the live objects back.
+    const request: RenderWorkerRequest = {
+      ...message,
+      plan: deserialiseEncodePlan(message.plan as WireEncodePlan),
+    };
+    void runWorkerJob(request, (response) => scope.postMessage(response), () => cancelled);
   };
   return () => {
     scope.onmessage = null;
@@ -222,11 +243,16 @@ export function createRenderer(
       }
 
       const estimatedBytes = (videoBitrateFor(plan.width, plan.height) * plan.timeline.totalSec) / 8;
-      const sinkKind = pickSinkKind(estimatedBytes, environment.capabilities);
+      const worker = kind === 'webcodecs' ? environment.createWorker() : null;
+      // A module worker has no showSaveFilePicker, so it cannot honour an
+      // fs-access sink even when the window can. Excluding it here keeps the
+      // worker's createSink from throwing before it posts any response back.
+      const sinkKind = pickSinkKind(
+        estimatedBytes,
+        worker ? { ...environment.capabilities, fsAccess: false } : environment.capabilities,
+      );
       const fileName = `quran-${Date.now()}.${kind === 'mediarecorder' ? 'webm' : 'mp4'}`;
       const id = nextId;
-
-      const worker = kind === 'webcodecs' ? environment.createWorker() : null;
       if (worker) {
         return new Promise<RenderedVideo>((resolve, reject) => {
           let settled = false;
@@ -253,7 +279,13 @@ export function createRenderer(
             const message = event instanceof Error ? event.message : String(event);
             finish(() => reject(new Error(message)));
           };
-          worker.postMessage({ kind: 'render', id, plan, sinkKind, fileName });
+          worker.postMessage({
+            kind: 'render',
+            id,
+            plan: serialiseEncodePlan(plan),
+            sinkKind,
+            fileName,
+          });
         });
       }
 

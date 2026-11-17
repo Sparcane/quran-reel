@@ -32,6 +32,8 @@
   "studio.preview.blocked": "Click to enable sound",
   "studio.preview.activate": "Enable sound",
   "studio.preview.error": "The preview could not be loaded. Check your connection and try again.",
+  "studio.generate": "Generate video",
+  "studio.generating": "Generating…",
   "studio.settings.title": "Settings",
   "studio.aspectRatio.legend": "Video format",
   "studio.ratio.16x9": "Format 16:9",

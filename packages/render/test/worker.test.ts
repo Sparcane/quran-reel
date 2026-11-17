@@ -208,6 +208,23 @@ describe('createRenderer', () => {
     expect((hub.sent[0] as RenderWorkerRequest).plan.timeline.entries).toHaveLength(1);
   });
 
+  it('never asks a worker for a sink the worker itself cannot create', async () => {
+    // Chrome desktop advertises showSaveFilePicker on the window, but a module
+    // worker has no such API. Picking it here hangs the render: createSink throws
+    // in the worker before any response is posted back.
+    const hub = workerHub({ percents: [100] });
+    const renderer = createRenderer(
+      environment({
+        createWorker: hub.factory,
+        capabilities: { ...ALL_CAPS, fsAccess: true },
+      }),
+    );
+
+    await renderer.render(spec(), () => {});
+
+    expect(hub.sent[0]).toMatchObject({ sinkKind: 'opfs' });
+  });
+
   it('refuses a video over 900 seconds before starting a worker', async () => {
     const hub = workerHub();
     const renderer = createRenderer(environment({ createWorker: hub.factory }));
@@ -390,5 +407,24 @@ describe('runWorkerJob', () => {
 
     expect(target.messages.map((message) => message.kind)).toEqual(['cancelled']);
     expect(sink.aborted).toBe(true);
+  });
+
+  it('posts an error when the sink cannot be created', async () => {
+    const target = scope();
+
+    await runWorkerJob(
+      { kind: 'render', id: 11, plan: {} as EncodePlan, sinkKind: 'fs-access', fileName: 'x.mp4' },
+      target.post,
+      () => false,
+      {
+        createSink: async () => {
+          throw new Error('sink: the File System Access API is not available in this browser');
+        },
+        encode: async () => video(),
+      },
+    );
+
+    expect(target.messages.map((message) => message.kind)).toEqual(['error']);
+    expect(target.messages[0]).toMatchObject({ id: 11, message: /File System Access/ });
   });
 });

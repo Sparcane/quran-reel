@@ -114,13 +114,15 @@ export function RenduPage({ job, onRetry }: RenduPageProps) {
             className="mx-auto w-full max-h-[70vh] rounded-xl bg-black"
           />
           <div className="mt-6 flex flex-wrap items-center gap-4">
-            <Link
+            {/* A native anchor, not next/link: the href is a blob: URL, which
+                the router would try to prefetch as a route and 404. */}
+            <a
               href={url || '#'}
               download={`quran-${job.id}.${job.result.container}`}
               className="inline-block rounded-lg bg-sky-500 px-4 py-2.5 text-sm font-semibold text-slate-950 transition-colors hover:bg-sky-400"
             >
               {t('rendu.download')}
-            </Link>
+            </a>
             <p className="text-sm text-white/55">
               {job.result.width} × {job.result.height} · {job.result.durationSec.toFixed(1)} s ·{' '}
               {job.result.container.toUpperCase()}

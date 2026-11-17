@@ -32,6 +32,8 @@
   "studio.preview.blocked": "اضغط لتفعيل الصوت",
   "studio.preview.activate": "تفعيل الصوت",
   "studio.preview.error": "تعذّر تحميل المعاينة. تحقّق من اتصالك ثم أعد المحاولة.",
+  "studio.generate": "إنشاء الفيديو",
+  "studio.generating": "جارٍ الإنشاء…",
   "studio.settings.title": "الإعدادات",
   "studio.aspectRatio.legend": "أبعاد الفيديو",
   "studio.ratio.16x9": "المقاس 16:9",

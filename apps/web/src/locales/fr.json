@@ -32,6 +32,8 @@
   "studio.preview.blocked": "Cliquez pour activer le son",
   "studio.preview.activate": "Activer le son",
   "studio.preview.error": "L'aperçu n'a pas pu être chargé. Vérifiez votre connexion, puis réessayez.",
+  "studio.generate": "Générer la vidéo",
+  "studio.generating": "Génération…",
   "studio.settings.title": "Réglages",
   "studio.aspectRatio.legend": "Format de la vidéo",
   "studio.ratio.16x9": "Format 16:9",

@@ -1,22 +1,48 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { dimensionsFor } from '@quran/core';
 import { AspectRatioPicker } from '@/components/studio/AspectRatioPicker';
 import { BackgroundPicker } from '@/components/studio/BackgroundPicker';
 import { ColorControls } from '@/components/studio/ColorControls';
 import { DraftsMenu } from '@/components/studio/DraftsMenu';
+import { GenerateButton } from '@/components/studio/GenerateButton';
 import { HistoryList } from '@/components/HistoryList';
 import { PreviewButton } from '@/components/studio/PreviewButton';
 import { TypographyControls } from '@/components/studio/TypographyControls';
 import { useT } from '@/lib/i18n';
+import { buildRenderSpec } from '@/lib/render-spec';
+import { startRender } from '@/lib/render-runtime';
 import { adoptHandoffSelection, useStudioStore } from '@/lib/studio-store';
 
-export function StudioShell() {
+export interface StudioShellProps {
+  /** Injected by the router shell; the fallback keeps unit rendering simple. */
+  navigate?: (url: string) => void;
+}
+
+export function StudioShell({ navigate }: StudioShellProps) {
   const t = useT();
   const selection = useStudioStore((state) => state.selection);
   const settings = useStudioStore((state) => state.settings);
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function generate(): Promise<void> {
+    setGenerating(true);
+    setError(null);
+    try {
+      const spec = await buildRenderSpec(selection, settings);
+      const job = await startRender(spec);
+      // A full load is required: a static export cannot route a dynamic id on
+      // the client. The job is queued in IndexedDB, and the result page pumps
+      // it there, so nothing is lost across the reload.
+      (navigate ?? ((url: string) => window.location.assign(url)))(`/rendu/${job.id}/`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : String(cause));
+      setGenerating(false);
+    }
+  }
 
   // The reader posts its selection once, then leaves. Taking it here (rather
   // than in an initialiser) keeps the first paint identical on the server.
@@ -99,6 +125,11 @@ export function StudioShell() {
             <TypographyControls />
             <ColorControls />
             <BackgroundPicker />
+            <GenerateButton
+              onGenerate={() => void generate()}
+              busy={generating}
+              error={error}
+            />
           </form>
         </div>
       )}

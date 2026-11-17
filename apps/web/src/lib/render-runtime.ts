@@ -17,34 +17,46 @@ import { jobStore } from '@/lib/queue-store';
 
 export const renderQueue = createQueue(jobStore);
 
-let renderer: VideoRenderer | null = null;
-function sharedRenderer(): VideoRenderer {
-  if (renderer !== null) return renderer;
-
-  // The `new Worker(new URL(...))` expression must live in the app that owns the
-  // worker file. In the workspace package Turbopack follows the URL through the
-  // node_modules symlink and never finishes building. Everything else — codecs,
-  // sink, selection — comes from the package environment.
-  const environment = defaultRendererEnvironment(() =>
-    typeof Worker === 'function'
-      ? (new Worker(new URL('./render-worker-entry.ts', import.meta.url), {
-          type: 'module',
-        }) as unknown as RenderWorkerLike)
-      : null,
+/**
+ * The `new Worker(new URL(...))` expression must live in the app that owns the
+ * worker file. In the workspace package Turbopack follows the URL through the
+ * node_modules symlink and never finishes building. Only a gradient can be
+ * described across that boundary; an imported background keeps the main thread
+ * so its real painter (and asset bytes) stay available to the encoder.
+ */
+function rendererFor(spec: RenderSpec): VideoRenderer {
+  const offload = spec.backgroundSelection?.kind === 'gradient';
+  const environment = defaultRendererEnvironment(
+    offload
+      ? () =>
+          typeof Worker === 'function'
+            ? (new Worker(new URL('./render-worker-entry.ts', import.meta.url), {
+                type: 'module',
+              }) as unknown as RenderWorkerLike)
+            : null
+      : () => null,
   );
-  renderer = createRenderer(environment);
-  return renderer;
+  return createRenderer(environment);
 }
 
-/** Stores the spec as a job and pumps the queue if it is idle. */
+/**
+ * Stores the spec as a queued job. A static export cannot route to a dynamic
+ * result page from the client (Next prerenders /rendu/[id] once as /rendu/_),
+ * so the studio opens the result page with a full page load. That reload ends
+ * this JavaScript context: the render must therefore start on the result page,
+ * not here, or the worker would die with the old document.
+ */
 export async function startRender(spec: RenderSpec): Promise<RenderJob> {
-  const job = await renderQueue.enqueue(spec);
+  return renderQueue.enqueue(spec);
+}
+
+/** Pumps the oldest queued job from the page that now owns it. */
+export async function resumeRender(job: RenderJob): Promise<void> {
   if (!renderQueue.isBusy()) {
     // A render outlives the click that started it; the result page polls the
     // store for progress rather than holding this promise.
-    void renderQueue.runNext(sharedRenderer());
+    await renderQueue.runNext(rendererFor(job.spec));
   }
-  return job;
 }
 
 /** A job still `running` after a restart is interrupted, not half-finished. */

@@ -207,6 +207,11 @@ export function createQueue(store: JobStore, options: QueueOptions = {}): Render
       const jobs = await store.list();
       for (const job of jobs) {
         if (job.status !== 'running') continue;
+        // A job rendering in THIS queue is alive, not left behind by a closed
+        // tab. The result page calls recover() on mount, including straight
+        // after a render it just started; marking that job interrupted would
+        // kill it and the download link would never appear.
+        if (active?.id === job.id) continue;
         await store.put({
           ...job,
           status: 'failed',

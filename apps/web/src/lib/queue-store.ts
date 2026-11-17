@@ -10,8 +10,8 @@
  */
 
 import type { BackgroundSelection, GradientSelection } from '@quran/core';
-import { createGradientPainter } from '@quran/render';
-import type { JobStore, RenderedVideo, RenderJob, RenderSpec } from '@quran/render';
+import { createGradientPainter, deserialiseAudio, serialiseAudio } from '@quran/render';
+import type { JobStore, RenderedVideo, RenderJob, RenderSpec, WireVerseClip } from '@quran/render';
 import { openStudioDatabase, STUDIO_JOB_STORE_NAME } from '@/lib/storage';
 
 const DEFAULT_BACKGROUND: GradientSelection = {
@@ -22,7 +22,8 @@ const DEFAULT_BACKGROUND: GradientSelection = {
   motion: true,
 };
 
-type StoredSpec = Omit<RenderSpec, 'background'>;
+/** Audio loses its method on the way to IndexedDB, just as it does in a worker. */
+type StoredSpec = Omit<RenderSpec, 'background' | 'verses'> & { verses: WireVerseClip[] };
 
 interface StoredResult extends Omit<RenderedVideo, 'blob'> {
   bytes: ArrayBuffer;
@@ -42,8 +43,12 @@ interface StoredJob {
 }
 
 async function toStored(job: RenderJob): Promise<StoredJob> {
-  const { background: _painter, ...spec } = job.spec;
+  const { background: _painter, verses, ...rest } = job.spec;
   void _painter;
+  const spec: StoredSpec = {
+    ...rest,
+    verses: verses.map((verse) => ({ ...verse, audio: serialiseAudio(verse.audio) })),
+  };
 
   let result: StoredResult | undefined;
   if (job.result) {
@@ -96,7 +101,14 @@ async function fromStored(record: StoredJob): Promise<RenderJob> {
 
   return {
     id: record.id,
-    spec: { ...record.spec, background },
+    spec: {
+      ...record.spec,
+      background,
+      verses: record.spec.verses.map((verse) => ({
+        ...verse,
+        audio: deserialiseAudio(verse.audio),
+      })),
+    },
     status: record.status,
     progress: record.progress,
     error: record.error,

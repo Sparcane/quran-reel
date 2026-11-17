@@ -7,7 +7,12 @@
  * that disagrees with the verses, a video over the fifteen-minute ceiling.
  */
 
-import { MAX_VIDEO_SECONDS, type Timeline, type WordTiming } from '@quran/core';
+import {
+  MAX_VIDEO_SECONDS,
+  type BackgroundSelection,
+  type Timeline,
+  type WordTiming,
+} from '@quran/core';
 import type { BackgroundPainter } from './background';
 import type { SubtitleStyle } from './types';
 
@@ -38,6 +43,8 @@ export interface EncodePlan {
   verses: VerseClip[];
   style: SubtitleStyle;
   background: BackgroundPainter;
+  /** Plain description of `background`, carried across the worker boundary. */
+  backgroundSelection?: BackgroundSelection;
   timeline: Timeline;
   /** StudioSettings' 0–100 unit. */
   overlayOpacity?: number;

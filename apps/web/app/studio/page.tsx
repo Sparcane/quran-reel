@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { StudioShell } from '@/components/studio/StudioShell';
+import { StudioRoute } from '@/components/studio/StudioRoute';
 
 export const metadata: Metadata = {
   title: 'Studio — Quran Studio',
@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function StudioPage() {
-  return <StudioShell />;
+  return <StudioRoute />;
 }

@@ -1,4 +1,8 @@
 {
+  "rewrites": [
+    { "source": "/rendu/:id", "destination": "/rendu/_" },
+    { "source": "/rendu/:id/:rest*", "destination": "/rendu/_/:rest*" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
