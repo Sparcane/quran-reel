@@ -1,10 +1,6 @@
+import { redirect } from 'next/navigation';
+
+/** The library is the front door; sending / there avoids a duplicate landing page. */
 export default function Home() {
-  return (
-    <main>
-      <h1>Quran Studio</h1>
-      <p>
-        <a href="/bibliotheque/">Bibliothèque</a>
-      </p>
-    </main>
-  );
+  redirect('/bibliotheque/');
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { VerseList } from '@/components/VerseList';
+import { buildSurahMetadata, siteUrl } from '@/lib/metadata';
 import { readSurah, surahParams } from '@/lib/surah-data';
 
 interface SouratePageProps {
@@ -14,11 +15,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: SouratePageProps): Promise<Metadata> {
   const { id } = await params;
-  const surah = readSurah(Number(id));
-  return {
-    title: `${surah.nameFr} — Quran Studio`,
-    description: `Sourate ${surah.number}, ${surah.nameFr} : ${surah.verseCount} versets en texte uthmani avec traduction, à lire et à mettre en vidéo.`,
-  };
+  return buildSurahMetadata(readSurah(Number(id)), siteUrl());
 }
 
 export default async function SouratePage({ params }: SouratePageProps) {
