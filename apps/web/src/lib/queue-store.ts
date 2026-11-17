@@ -4,15 +4,20 @@
  * The queue itself (`@quran/render`) knows nothing about IndexedDB; this module
  * is its `JobStore` on the web. A `RenderSpec` holds a live painter with methods,
  * which structured clone cannot store, so the record keeps the plain
- * `backgroundSelection` instead and rebuilds a painter when read back. Done
- * jobs carry a video blob, stored as bytes for the same reason imported
- * backgrounds are. Without IndexedDB the jobs live for the session only.
+ * `backgroundSelection` instead and rebuilds a painter when the queue reads a
+ * job to render it. Done jobs carry a video blob, stored as bytes for the same
+ * reason imported backgrounds are. Without IndexedDB the jobs live for the
+ * session only.
  */
 
 import type { BackgroundSelection, GradientSelection } from '@quran/core';
 import { createGradientPainter, deserialiseAudio, serialiseAudio } from '@quran/render';
 import type { JobStore, RenderedVideo, RenderJob, RenderSpec, WireVerseClip } from '@quran/render';
-import { createImportedBackground, type ImportedSelection } from '@/lib/background-painter';
+import {
+  createImportedBackground,
+  ensureImportedAsset,
+  type ImportedSelection,
+} from '@/lib/background-painter';
 import { openStudioDatabase, STUDIO_JOB_STORE_NAME } from '@/lib/storage';
 
 const DEFAULT_BACKGROUND: GradientSelection = {
@@ -77,7 +82,7 @@ async function toStored(job: RenderJob): Promise<StoredJob> {
   };
 }
 
-async function fromStored(record: StoredJob): Promise<RenderJob> {
+async function fromStored(record: StoredJob, forRender = false): Promise<RenderJob> {
   const selection: BackgroundSelection = record.spec.backgroundSelection ?? DEFAULT_BACKGROUND;
   const size = { width: record.spec.width, height: record.spec.height };
   // Only a queued job is going to paint: a finished one is displayed from its
@@ -86,25 +91,30 @@ async function fromStored(record: StoredJob): Promise<RenderJob> {
   const imported = selection.kind !== 'gradient' && record.status === 'queued';
   const gradient: GradientSelection = selection.kind === 'gradient' ? selection : DEFAULT_BACKGROUND;
   let background = createGradientPainter(gradient, size);
-  let failure: string | undefined;
   if (imported) {
     try {
-      // The timeline carries the lead-in; without one, the verse durations are
-      // the honest floor for how long the looped source must cover.
-      const durationSec =
-        record.spec.timeline?.totalSec ??
-        record.spec.verses.reduce((total, verse) => total + (verse.durationSec ?? 0), 0);
-      background = await createImportedBackground(
-        selection as ImportedSelection,
-        size,
-        durationSec,
-      );
+      // The result page polls get() every 500 ms; only the queue's own read
+      // (list, right before a render) may pay the demux and the decode. Every
+      // other read pays only this cheap existence check.
+      await ensureImportedAsset(selection as ImportedSelection);
+      if (forRender) {
+        // The timeline carries the lead-in; without one, the verse durations
+        // are the honest floor for how long the looped source must cover.
+        const durationSec =
+          record.spec.timeline?.totalSec ??
+          record.spec.verses.reduce((total, verse) => total + (verse.durationSec ?? 0), 0);
+        background = await createImportedBackground(
+          selection as ImportedSelection,
+          size,
+          durationSec,
+        );
+      }
     } catch (error) {
       // A missing asset must not turn into the default gradient: that would
-      // render a video that silently contradicts the user's choice. The record
-      // stays queued on the device so "Relancer" can retry once it is back.
-      background = createGradientPainter(DEFAULT_BACKGROUND, size);
-      failure = error instanceof Error ? error.message : String(error);
+      // render a video that silently contradicts the user's choice. The job is
+      // shown and stored failed; "Relancer" starts a fresh job with the new
+      // asset id the re-import creates.
+      return persistFailure(record, error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -130,14 +140,34 @@ async function fromStored(record: StoredJob): Promise<RenderJob> {
         audio: deserialiseAudio(verse.audio),
       })),
     },
-    status: failure ? 'failed' : record.status,
+    status: record.status,
     progress: record.progress,
-    error: failure ?? record.error,
+    error: record.error,
     createdAt: record.createdAt,
     startedAt: record.startedAt,
     finishedAt: record.finishedAt,
     result,
   };
+}
+
+/** Stores a failed job so later reads see the failure instead of re-testing it. */
+async function persistFailure(record: StoredJob, message: string): Promise<RenderJob> {
+  const failed: StoredJob = {
+    ...record,
+    status: 'failed',
+    error: message,
+    finishedAt: record.finishedAt ?? Date.now(),
+  };
+  memoryJobs.set(failed.id, failed);
+  if (typeof indexedDB !== 'undefined') {
+    try {
+      const db = await openStudioDatabase();
+      await db.put(STUDIO_JOB_STORE_NAME, failed, failed.id);
+    } catch {
+      // The session copy already carries the failure.
+    }
+  }
+  return fromStored(failed);
 }
 
 /** Jobs kept for the session when the device has no usable IndexedDB. */
@@ -176,8 +206,10 @@ export function createQueueStore(): JobStore {
     },
 
     async list() {
+      // The queue reads jobs to render them: this is the only read allowed to
+      // rebuild an imported painter (and pay the decode).
       const records = await readAll();
-      return Promise.all(records.map(fromStored));
+      return Promise.all(records.map((record) => fromStored(record, true)));
     },
 
     async put(job) {
