@@ -10,3 +10,4 @@ export * from './encoder-webcodecs';
 export * from './select-encoder';
 export * from './encoder-mediarecorder';
 export * from './worker';
+export * from './queue';

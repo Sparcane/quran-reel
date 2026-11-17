@@ -1,4 +1,4 @@
-import type { Timeline } from '@quran/core';
+import type { BackgroundSelection, Timeline } from '@quran/core';
 import type { BackgroundPainter } from './background';
 import type { VerseClip } from './encoder-plan';
 
@@ -38,6 +38,11 @@ export interface RenderSpec {
   verses: VerseClip[];
   style: SubtitleStyle;
   background: BackgroundPainter;
+  /**
+   * Plain description of `background`, kept so a queued job survives being
+   * written to IndexedDB (a painter holds functions and cannot be cloned).
+   */
+  backgroundSelection?: BackgroundSelection;
   /** Built from the verse lengths when the caller has no timeline yet. */
   timeline?: Timeline;
   /** StudioSettings' 0–100 unit. */
