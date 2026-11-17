@@ -15,14 +15,27 @@ export interface LaidOutText {
   totalHeight: number;
 }
 
+/**
+ * The slice of a 2D context that measuring and wrapping needs. Keeping it
+ * narrow lets the compositor use its own recorded context and lets a test
+ * measure without a canvas.
+ */
+export type TextMeasureContext = Pick<
+  OffscreenCanvasRenderingContext2D,
+  'font' | 'direction' | 'textAlign' | 'measureText'
+>;
+
 /** A family name with spaces must be quoted, or the canvas ignores the font. */
-function quoteFamily(family: string): string {
-  return /^[A-Za-z0-9_-]+$/.test(family) ? family : `"${family.replace(/"/g, '\\"')}"`;
+export function cssFont(family: string, size: number): string {
+  const quoted = /^[A-Za-z0-9_-]+$/.test(family)
+    ? family
+    : `"${family.replace(/"/g, '\\"')}"`;
+  return `${size}px ${quoted}`;
 }
 
 function wrap(
   text: string,
-  ctx: OffscreenCanvasRenderingContext2D,
+  ctx: TextMeasureContext,
   size: number,
   sizeName: string,
   family: string,
@@ -43,7 +56,7 @@ function wrap(
   // Line boxes are whole pixels so the text block lands on the same row in
   // every frame and rounding never accumulates over a 15-minute video.
   const lineHeight = Math.round(size * lineHeightRatio);
-  ctx.font = `${size}px ${quoteFamily(family)}`;
+  ctx.font = cssFont(family, size);
   ctx.direction = direction;
   ctx.textAlign = 'center';
 
@@ -73,7 +86,7 @@ function wrap(
 
 export function layoutArabic(
   text: string,
-  ctx: OffscreenCanvasRenderingContext2D,
+  ctx: TextMeasureContext,
   style: SubtitleStyle,
   maxWidth: number,
 ): LaidOutText {
@@ -92,7 +105,7 @@ export function layoutArabic(
 /** Translations shipped in v1 are French and English, so they read left to right. */
 export function layoutTranslation(
   text: string,
-  ctx: OffscreenCanvasRenderingContext2D,
+  ctx: TextMeasureContext,
   style: SubtitleStyle,
   maxWidth: number,
 ): LaidOutText {
