@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import type { RenderJob } from '@quran/render';
+import { isMissingBackgroundAsset } from '@/lib/background-painter';
 import { RenduPage } from '@/components/ResultPlayer';
 import { jobStore } from '@/lib/queue-store';
 import { recoverQueue, resumeRender, startRender } from '@/lib/render-runtime';
@@ -82,10 +83,19 @@ export function RenduRoute() {
   return (
     <RenduPage
       job={job}
-      onRetry={() => {
-        if (!job) return;
-        void startRender(job.spec).then((created) => window.location.assign(`/rendu/${created.id}/`));
-      }}
+      // A missing-background failure cannot be repaired from here: the
+      // re-import creates a new asset id and only the studio can build a spec
+      // around it. Relancer is offered only for errors the same spec can
+      // survive; RenduPage hides the button when there is no handler.
+      onRetry={
+        job && !isMissingBackgroundAsset(job.error)
+          ? () => {
+              void startRender(job.spec).then((created) =>
+                window.location.assign(`/rendu/${created.id}/`),
+              );
+            }
+          : undefined
+      }
     />
   );
 }

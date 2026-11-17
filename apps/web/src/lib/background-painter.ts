@@ -15,13 +15,28 @@ import { loadBackgroundAsset } from '@/lib/storage';
 export type ImportedSelection = ImageSelection | VideoSelection;
 
 /**
+ * The honest error for a background asset that is gone from the device. It
+ * names the only real recovery: the re-import creates a NEW asset id, which
+ * only the studio can put into a fresh spec — retrying this job's spec would
+ * fail again, so the result page offers no Relancer for it.
+ */
+export const MISSING_BACKGROUND_ASSET_ERROR =
+  'le fond importé n’est plus sur cet appareil ; réimportez-le dans le studio puis relancez la génération';
+
+export function isMissingBackgroundAsset(error: string | undefined | null): boolean {
+  return error !== undefined && error !== null && error.includes(MISSING_BACKGROUND_ASSET_ERROR);
+}
+
+const missingAsset = () => new Error(MISSING_BACKGROUND_ASSET_ERROR);
+
+/**
  * Refuses a selection whose asset is gone, without paying the decode. The
  * store calls this on every read of a queued job, so it must stay cheap.
  */
 export async function ensureImportedAsset(selection: ImportedSelection): Promise<void> {
   const asset = await loadBackgroundAsset(selection.assetId);
   if (!asset) {
-    throw new Error('render: le fond importé n’est plus sur cet appareil');
+    throw missingAsset();
   }
 }
 
@@ -33,7 +48,7 @@ export async function createImportedBackground(
 ): Promise<BackgroundPainter> {
   const asset = await loadBackgroundAsset(selection.assetId);
   if (!asset) {
-    throw new Error('render: le fond importé n’est plus sur cet appareil');
+    throw missingAsset();
   }
   if (selection.kind === 'image') {
     return createImagePainter(await createImageBitmap(asset.blob), size);

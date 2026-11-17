@@ -2,16 +2,18 @@ import { render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_VIDEO_SECONDS } from '@quran/core';
 import { createGradientPainter, type RenderJob } from '@quran/render';
+import { MISSING_BACKGROUND_ASSET_ERROR } from '@/lib/background-painter';
 import { RenduRoute } from '@/components/RenduRoute';
 
 const REAL_ID = '2fb683f8-7bc0-48fe-9f06-758dcd0089a1';
 
-const { getJob, resumeRender } = vi.hoisted(() => ({
+const { getJob, resumeRender, startRender } = vi.hoisted(() => ({
   getJob: vi.fn(),
   resumeRender: vi.fn(),
+  startRender: vi.fn(),
 }));
 
-function makeJob(status: RenderJob['status']): RenderJob {
+function makeJob(status: RenderJob['status'], error?: string): RenderJob {
   return {
     id: REAL_ID,
     spec: {
@@ -39,6 +41,7 @@ function makeJob(status: RenderJob['status']): RenderJob {
     },
     status,
     progress: status === 'done' ? 100 : 0,
+    error,
     createdAt: 1,
     finishedAt: status === 'done' ? 2 : undefined,
     result:
@@ -72,7 +75,7 @@ vi.mock('next/navigation', () => ({
 vi.mock('@/lib/queue-store', () => ({ jobStore: { get: getJob } }));
 vi.mock('@/lib/render-runtime', () => ({
   recoverQueue: async () => undefined,
-  startRender: vi.fn(),
+  startRender,
   resumeRender,
 }));
 
@@ -81,6 +84,7 @@ describe('RenduRoute', () => {
     window.history.pushState({}, '', `/rendu/${REAL_ID}/`);
     getJob.mockClear();
     resumeRender.mockClear();
+    startRender.mockReset();
     getJob.mockImplementation(async (id: string): Promise<RenderJob | null> =>
       id === REAL_ID ? makeJob('done') : null,
     );
@@ -118,5 +122,34 @@ describe('RenduRoute', () => {
     await new Promise((resolve) => setTimeout(resolve, 1300));
 
     expect(getJob.mock.calls.length).toBe(callsWhenDone);
+  });
+
+  it('hides Relancer for a missing-background failure, whose spec cannot be repaired', async () => {
+    // Retrying this job's spec would fail again: the re-import creates a new
+    // asset id, and only the studio can put it into a fresh spec.
+    const failed = makeJob('failed', MISSING_BACKGROUND_ASSET_ERROR);
+    getJob.mockImplementation(async (id: string): Promise<RenderJob | null> =>
+      id === REAL_ID ? failed : null,
+    );
+
+    render(<RenduRoute />);
+
+    expect(await screen.findByText(MISSING_BACKGROUND_ASSET_ERROR)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /relancer le rendu/i })).toBeNull();
+    expect(startRender).not.toHaveBeenCalled();
+  });
+
+  it('still offers Relancer for a failure the same spec can survive', async () => {
+    startRender.mockResolvedValue({ id: 'new-job' });
+    const failed = makeJob('failed', 'l’encodage a été interrompu');
+    getJob.mockImplementation(async (id: string): Promise<RenderJob | null> =>
+      id === REAL_ID ? failed : null,
+    );
+
+    render(<RenduRoute />);
+    const user = await screen.findByRole('button', { name: /relancer le rendu/i });
+    user.click();
+
+    await vi.waitFor(() => expect(startRender).toHaveBeenCalledWith(failed.spec));
   });
 });

@@ -112,8 +112,9 @@ async function fromStored(record: StoredJob, forRender = false): Promise<RenderJ
     } catch (error) {
       // A missing asset must not turn into the default gradient: that would
       // render a video that silently contradicts the user's choice. The job is
-      // shown and stored failed; "Relancer" starts a fresh job with the new
-      // asset id the re-import creates.
+      // shown and stored failed; its spec cannot be repaired here (the
+      // re-import creates a new asset id), so the result page offers no
+      // Relancer for this error — the user re-imports in the studio.
       return persistFailure(record, error instanceof Error ? error.message : String(error));
     }
   }
