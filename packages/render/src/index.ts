@@ -1,4 +1,5 @@
 export * from './background';
+export * from './background-video';
 export * from './types';
 export * from './text-layout';
 export * from './compositor';
