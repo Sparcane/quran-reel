@@ -7,6 +7,7 @@ import { AspectRatioPicker } from '@/components/studio/AspectRatioPicker';
 import { BackgroundPicker } from '@/components/studio/BackgroundPicker';
 import { ColorControls } from '@/components/studio/ColorControls';
 import { DraftsMenu } from '@/components/studio/DraftsMenu';
+import { HistoryList } from '@/components/HistoryList';
 import { PreviewButton } from '@/components/studio/PreviewButton';
 import { TypographyControls } from '@/components/studio/TypographyControls';
 import { useT } from '@/lib/i18n';
@@ -101,6 +102,10 @@ export function StudioShell() {
           </form>
         </div>
       )}
+
+      <div className="mt-8">
+        <HistoryList />
+      </div>
     </main>
   );
 }

@@ -80,5 +80,9 @@
   "rendu.retry": "Relancer le rendu",
   "rendu.download": "Télécharger la vidéo",
   "rendu.player": "Vidéo rendue",
-  "rendu.back": "Retour au Studio"
+  "rendu.back": "Retour au Studio",
+  "history.title": "Vidéos récentes",
+  "history.empty": "Aucune vidéo enregistrée pour le moment.",
+  "history.view": "Voir",
+  "history.delete": "Supprimer"
 }

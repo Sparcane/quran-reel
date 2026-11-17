@@ -11,12 +11,13 @@ import { toSelection } from '@/lib/verses';
 
 /** IndexedDB database that holds the studio's own records. */
 export const STUDIO_DB_NAME = 'quran-studio';
-/** v2 added `assets`, v3 `drafts`, v4 the render `jobs` queue; older databases upgrade in place. */
-export const STUDIO_DB_VERSION = 4;
+/** v2 added `assets`, v3 `drafts`, v4 `jobs`, v5 the render `history`; older databases upgrade in place. */
+export const STUDIO_DB_VERSION = 5;
 export const STUDIO_STORE_NAME = 'state';
 export const STUDIO_ASSET_STORE_NAME = 'assets';
 export const STUDIO_DRAFT_STORE_NAME = 'drafts';
 export const STUDIO_JOB_STORE_NAME = 'jobs';
+export const STUDIO_HISTORY_STORE_NAME = 'history';
 
 /** Key under which the studio draft lives in that database. */
 export const STUDIO_STORAGE_KEY = 'studio';
@@ -70,6 +71,9 @@ export function openStudioDatabase(): Promise<IDBPDatabase<unknown>> {
         }
         if (!db.objectStoreNames.contains(STUDIO_JOB_STORE_NAME)) {
           db.createObjectStore(STUDIO_JOB_STORE_NAME);
+        }
+        if (!db.objectStoreNames.contains(STUDIO_HISTORY_STORE_NAME)) {
+          db.createObjectStore(STUDIO_HISTORY_STORE_NAME);
         }
       },
     }).catch((error: unknown) => {

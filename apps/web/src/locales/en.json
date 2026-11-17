@@ -80,5 +80,9 @@
   "rendu.retry": "Relaunch the render",
   "rendu.download": "Download the video",
   "rendu.player": "Rendered video",
-  "rendu.back": "Back to the Studio"
+  "rendu.back": "Back to the Studio",
+  "history.title": "Recent videos",
+  "history.empty": "No saved videos yet.",
+  "history.view": "View",
+  "history.delete": "Delete"
 }

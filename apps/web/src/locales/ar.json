@@ -80,5 +80,9 @@
   "rendu.retry": "إعادة الإنشاء",
   "rendu.download": "تنزيل الفيديو",
   "rendu.player": "الفيديو الناتج",
-  "rendu.back": "العودة إلى الاستوديو"
+  "rendu.back": "العودة إلى الاستوديو",
+  "history.title": "الفيديوهات الأخيرة",
+  "history.empty": "لا توجد فيديوهات محفوظة بعد.",
+  "history.view": "عرض",
+  "history.delete": "حذف"
 }
