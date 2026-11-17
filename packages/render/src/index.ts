@@ -4,4 +4,7 @@ export * from './text-layout';
 export * from './compositor';
 export * from './sink';
 export * from './muxer';
+export * from './encoder-plan';
 export * from './encoder-webcodecs';
+export * from './select-encoder';
+export * from './encoder-mediarecorder';

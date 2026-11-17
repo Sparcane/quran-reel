@@ -2,21 +2,23 @@ import { describe, expect, it } from 'vitest';
 import { buildTimeline } from '@quran/core';
 import { createGradientPainter, type BackgroundPainter } from '../src/background';
 import {
-  defaultEncoderEnvironment,
-  encodeWebCodecs,
   EncoderUnavailableError,
   videoBitrateFor,
+  type EncodePlan,
+  type PlanarAudio,
+  type VerseClip,
+} from '../src/encoder-plan';
+import {
+  defaultEncoderEnvironment,
+  encodeWebCodecs,
   videoCodecCandidates,
   webCodecsAvailable,
   type AudioEncoderFactory,
   type AudioEncoderInitLike,
   type AudioEncoderLike,
-  type EncodePlan,
   type EncodedChunkLike,
   type EncodedVideoChunkLike,
   type EncoderEnvironment,
-  type PlanarAudio,
-  type VerseClip,
   type VideoEncoderFactory,
   type VideoEncoderInitLike,
   type VideoEncoderLike,
