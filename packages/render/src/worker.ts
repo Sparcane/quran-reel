@@ -290,13 +290,22 @@ export function createRenderer(
       }
 
       const sink = await environment.createSink(sinkKind, fileName);
+      let cancelled = false;
       let cancelJob: () => void = () => {};
       const cancellation = new Promise<never>((_resolve, reject) => {
-        cancelJob = () => reject(new RenderCancelledError());
+        cancelJob = () => {
+          cancelled = true;
+          reject(new RenderCancelledError());
+        };
       });
       active = { cancel: cancelJob };
 
       const job = environment.encode(kind, plan, sink, (progress) => {
+        // The encoders abort their sink and release their resources when the
+        // progress callback throws, so this is how a cancelled render stops
+        // painting: without it the encoder runs to the last frame and, on the
+        // MediaRecorder path, never closes its recorder or audio context.
+        if (cancelled) throw new RenderCancelledError();
         if (!Number.isFinite(progress.percent)) return;
         onProgress(progress);
       });

@@ -3,7 +3,7 @@ import { MAX_VIDEO_SECONDS } from '@quran/core';
 import { createGradientPainter } from '../src/background';
 import { createMemoryJobStore, createQueue, type RenderJob } from '../src/queue';
 import { RenderCancelledError, type VideoRenderer } from '../src/worker';
-import type { RenderedVideo, RenderSpec, SubtitleStyle } from '../src/types';
+import type { Progress, RenderedVideo, RenderSpec, SubtitleStyle } from '../src/types';
 
 const style: SubtitleStyle = {
   arabicFamily: 'Uthmanic Hafs',
@@ -171,6 +171,49 @@ describe('createQueue', () => {
     expect(renderer.cancelled).toBe(true);
     expect(finished?.status).toBe('cancelled');
     expect((await queue.getJob(job.id))?.status).toBe('cancelled');
+  });
+
+  it('ignores progress reported after the job was cancelled', async () => {
+    const store = createMemoryJobStore();
+    const queue = createQueue(store, { newId: () => 'stale', now: () => 1 });
+    const job = await queue.enqueue(spec('stale'));
+
+    // The inline encoder does not stop the instant it is cancelled: a frame it
+    // is already painting still reports progress. That late report must not put
+    // a cancelled job back to `running`; `recover()` would then call it
+    // interrupted and the result page would show the wrong story.
+    const control: {
+      report?: (progress: Progress) => void;
+      finish?: () => void;
+    } = {};
+    const renderer: FakeRenderer = {
+      calls: [],
+      cancelled: false,
+      progressSeen: [],
+      render(_renderSpec, onProgress) {
+        control.report = onProgress;
+        return new Promise<RenderedVideo>((resolve) => {
+          control.finish = () => resolve(video('late'));
+        });
+      },
+      cancel() {
+        this.cancelled = true;
+      },
+    };
+
+    const pending = queue.runNext(renderer);
+    await Promise.resolve();
+    await queue.cancelJob(job.id);
+
+    control.report?.({ frame: 48, totalFrames: 60, percent: 80, etaSec: 1 });
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect((await queue.getJob(job.id))?.status).toBe('cancelled');
+
+    control.finish?.();
+    const finished = await pending;
+    expect(finished?.status).toBe('cancelled');
   });
 
   it('records a failure with its message', async () => {

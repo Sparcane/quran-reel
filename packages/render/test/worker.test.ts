@@ -328,6 +328,38 @@ describe('createRenderer', () => {
     expect(spy.aborted).toBe(true);
   });
 
+  it('stops the inline encoder instead of letting it run to completion', async () => {
+    // One render outlives the click that cancels it: the encoder keeps painting
+    // frames until it notices. On the main thread that is up to fifteen minutes
+    // of CPU for a video nobody will ever see, plus a MediaRecorder and an
+    // AudioContext left running.
+    let encoded = 0;
+    let completed = false;
+    const renderer = createRenderer(
+      environment({
+        encode: async (_kind, _plan, _sink, onProgress) => {
+          for (let frame = 1; frame <= 20; frame += 1) {
+            encoded = frame;
+            onProgress(progress(frame * 5));
+            await Promise.resolve();
+          }
+          completed = true;
+          return video();
+        },
+      }),
+    );
+
+    const pending = renderer.render(spec(), () => {});
+    await flush();
+    renderer.cancel();
+
+    await expect(pending).rejects.toThrow(/cancel/i);
+    await flush(40);
+
+    expect(completed).toBe(false);
+    expect(encoded).toBeLessThan(20);
+  });
+
   it('aborts the sink when an inline encode fails', async () => {
     const spy = sinkSpy();
     const renderer = createRenderer(

@@ -103,6 +103,8 @@ export function createQueue(store: JobStore, options: QueueOptions = {}): Render
 
   let busy = false;
   let active: { id: string; cancel(): void } | null = null;
+  /** Jobs the user cancelled; their encoder may still report progress briefly. */
+  const cancelled = new Set<string>();
 
   /** Writes the terminal state unless a cancellation already won the race. */
   async function settle(
@@ -152,6 +154,10 @@ export function createQueue(store: JobStore, options: QueueOptions = {}): Render
         let lastProgress = running.progress;
         try {
           const result = await renderer.render(running.spec, (progress) => {
+            // A cancelled encoder can still emit one more tick before it stops.
+            // Writing it would put the job back to `running`, and `recover()`
+            // would then report an interrupted render instead of a cancelled one.
+            if (cancelled.has(running.id)) return;
             if (!Number.isFinite(progress.percent) || progress.percent <= lastProgress) return;
             lastProgress = progress.percent;
             // Progress is best-effort: a lost update costs a stale percentage,
@@ -191,6 +197,7 @@ export function createQueue(store: JobStore, options: QueueOptions = {}): Render
 
       // Write the terminal state first so the renderer's own rejection sees a
       // job that is already cancelled and cannot overwrite it with `done`.
+      cancelled.add(id);
       await store.put({ ...job, status: 'cancelled', finishedAt: now() });
       if (job.status === 'running' && active?.id === id) active.cancel();
     },
