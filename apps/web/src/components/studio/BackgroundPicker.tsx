@@ -3,7 +3,14 @@
 import { useRef, useState } from 'react';
 import type { GradientSelection } from '@quran/core';
 import { useT } from '@/lib/i18n';
-import { validateBackgroundFile } from '@/lib/import-background';
+import {
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_PIXELS,
+  MAX_IMAGE_SIDE,
+  MAX_SOURCE_SECONDS,
+  MAX_VIDEO_BYTES,
+  validateBackgroundFile,
+} from '@/lib/import-background';
 import { useStudioStore } from '@/lib/studio-store';
 import { deleteBackgroundAsset, saveBackgroundAsset } from '@/lib/storage';
 
@@ -27,7 +34,22 @@ const ERROR_KEYS: Record<string, string> = {
   type: 'studio.background.error.type',
   codec: 'studio.background.error.codec',
   empty: 'studio.background.error.empty',
+  size: 'studio.background.error.size',
+  dimensions: 'studio.background.error.dimensions',
+  duration: 'studio.background.error.duration',
   storage: 'studio.background.error.storage',
+};
+
+/**
+ * The limits the messages quote, read from the module that enforces them so a
+ * change of bound cannot leave a reassuring message behind.
+ */
+const LIMITS = {
+  imageMb: Math.round(MAX_IMAGE_BYTES / (1024 * 1024)),
+  videoMb: Math.round(MAX_VIDEO_BYTES / (1024 * 1024)),
+  side: MAX_IMAGE_SIDE,
+  megapixels: Math.round(MAX_IMAGE_PIXELS / (1024 * 1024)),
+  minutes: Math.round(MAX_SOURCE_SECONDS / 60),
 };
 
 function sameGradient(a: GradientSelection, b: GradientSelection): boolean {
@@ -133,7 +155,9 @@ export function BackgroundPicker() {
           }}
           className="block w-full cursor-pointer rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-sm text-white/70 file:mr-3 file:rounded file:border-0 file:bg-sky-500 file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-slate-950"
         />
-        <p className="mt-1 text-xs text-muted">{t('studio.background.hint')}</p>
+        <p className="mt-1 text-xs text-muted">
+          {t('studio.background.hint', LIMITS)}
+        </p>
       </div>
 
       {background.kind !== 'gradient' ? (
@@ -153,7 +177,7 @@ export function BackgroundPicker() {
 
       {errorKey ? (
         <p role="alert" className="text-sm text-amber-300">
-          {t(errorKey)}
+          {t(errorKey, LIMITS)}
         </p>
       ) : null}
     </fieldset>

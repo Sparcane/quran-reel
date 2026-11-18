@@ -211,6 +211,27 @@ describe('BackgroundPicker', () => {
     expect(useStudioStore.getState().settings.background.kind).toBe('gradient');
   });
 
+  it('explains an oversized picture with the limit it broke', async () => {
+    const user = userEvent.setup();
+    render(<BackgroundPicker />);
+    const bytes = new Uint8Array(24);
+    bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+    bytes.set([0, 0, 0, 0x0d], 8);
+    bytes.set(new TextEncoder().encode('IHDR'), 12);
+    bytes.set([0, 0, 0x27, 0x10], 16); // 10 000 px wide
+    bytes.set([0, 0, 0x04, 0x38], 20); // 1 080 px tall
+
+    await user.upload(
+      screen.getByLabelText('Importer un fond'),
+      new File([bytes], 'enorme.png', { type: 'image/png' }),
+    );
+
+    // The number comes from the module that enforces the bound, so the message
+    // cannot promise a limit the validator does not apply.
+    expect(await screen.findByRole('alert')).toHaveTextContent(/8192/);
+    expect(useStudioStore.getState().settings.background.kind).toBe('gradient');
+  });
+
   it('drops an imported background when the user removes it', async () => {
     const user = userEvent.setup();
     render(<BackgroundPicker />);
