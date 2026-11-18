@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_VIDEO_SECONDS } from '@quran/core';
 import { createGradientPainter, type RenderJob } from '@quran/render';
 import { MISSING_BACKGROUND_ASSET_ERROR } from '@/lib/background-painter';
-import { RenduRoute } from '@/components/RenduRoute';
+import { currentId, RenduRoute } from '@/components/RenduRoute';
 
 const REAL_ID = '2fb683f8-7bc0-48fe-9f06-758dcd0089a1';
 
@@ -92,6 +92,20 @@ describe('RenduRoute', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('reads a valid escaped id from the address bar', () => {
+    window.history.pushState({}, '', `/rendu/${encodeURIComponent('job à accents')}/`);
+
+    expect(currentId('_')).toBe('job à accents');
+  });
+
+  it('falls back to the router id when a copied link has a broken escape', () => {
+    // A truncated link used to throw URIError during React rendering, leaving
+    // a blank page instead of the usual unknown-id 404.
+    window.history.pushState({}, '', '/rendu/%E0/');
+
+    expect(currentId('_')).toBe('_');
   });
 
   it('reads the job from the address bar, not the prerendered placeholder id', async () => {

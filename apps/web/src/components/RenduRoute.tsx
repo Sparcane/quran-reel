@@ -15,12 +15,17 @@ import { recoverQueue, resumeRender, startRender } from '@/lib/render-runtime';
  * job's real id. The address bar is the source of truth; the router value is
  * only a server-side fallback (there is no window while prerendering).
  */
-function currentId(fallback: string | undefined): string {
+export function currentId(fallback: string | undefined): string {
   if (typeof window !== 'undefined') {
-    const fromUrl = decodeURIComponent(
-      window.location.pathname.split('/').filter(Boolean).pop() ?? '',
-    );
-    if (fromUrl) return fromUrl;
+    const segment = window.location.pathname.split('/').filter(Boolean).pop() ?? '';
+    if (segment) {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        // A truncated escape in a copied link must not blank the page: fall
+        // back to the prerendered id, which leads to the usual unknown-id 404.
+      }
+    }
   }
   return fallback ?? '';
 }
