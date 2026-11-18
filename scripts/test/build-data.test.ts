@@ -36,7 +36,9 @@ describe('parseTanzil', () => {
 
   it('keeps every Uthmani verse verbatim', () => {
     const { surahs } = parseTanzil(fixture);
-    const raw = fixture.split('\n').find((line) => line.startsWith('1|1|'))!;
+    // Same line-ending contract as the parser: a Windows checkout (autocrlf)
+    // gives the fixture CRLF, and a bare '\n' split would keep a stray '\r'.
+    const raw = fixture.split(/\r?\n/).find((line) => line.startsWith('1|1|'))!;
     const rawText = raw.split('|').slice(2).join('|');
 
     expect(surahs[0].verses[0].arabic).toBe(rawText);
