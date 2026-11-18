@@ -5,6 +5,8 @@ import type { PaintContext, Size } from '../src/background';
 import {
   createVideoPainter,
   defaultBackgroundVideoEnvironment,
+  frameBudget,
+  MAX_FRAMES,
   type BackgroundVideoEnvironment,
   type VideoChunkLike,
   type VideoDecoderConfigLike,
@@ -321,5 +323,59 @@ describe('createVideoPainter', () => {
 
   it('reports a missing WebCodecs stack when there is no injected environment', () => {
     expect(() => defaultBackgroundVideoEnvironment({})).toThrow(/WebCodecs/i);
+  });
+});
+
+describe('the frame budget', () => {
+  it('keeps the whole clip for a small source', () => {
+    expect(frameBudget(64, 64)).toBe(MAX_FRAMES);
+    expect(frameBudget(0, 0)).toBe(MAX_FRAMES);
+  });
+
+  it('keeps fewer frames as the decoded picture grows', () => {
+    const hd = frameBudget(1920, 1080);
+    const uhd = frameBudget(3840, 2160);
+
+    expect(hd).toBeLessThan(MAX_FRAMES);
+    expect(uhd).toBeLessThan(hd);
+    expect(uhd).toBeGreaterThan(0);
+  });
+
+  it('stops decoding once the budget is spent and loops the window it kept', async () => {
+    const harness = makeHarness();
+    const painter = await createVideoPainter(
+      fixture('background.h264.mp4'),
+      SIZE,
+      10,
+      harness.env,
+      { maxFrames: 30 },
+    );
+
+    // Thirty frames of 33 ms: the loop is 0.99 s, not the 3.96 s of the file.
+    expect(harness.chunks).toHaveLength(30);
+    expect(harness.frames).toHaveLength(30);
+
+    const { ctx, draws } = makePaintContext();
+    painter.paint(ctx, 0);
+    painter.paint(ctx, 0.5);
+    painter.paint(ctx, 0.99);
+
+    expect(draws.map((draw) => draw.frame.mark)).toEqual([0, 15, 0]);
+  });
+
+  it('closes only the frames it kept', async () => {
+    const harness = makeHarness();
+    const painter = await createVideoPainter(
+      fixture('background.h264.mp4'),
+      SIZE,
+      10,
+      harness.env,
+      { maxFrames: 30 },
+    );
+
+    painter.dispose();
+
+    expect(harness.frames).toHaveLength(30);
+    expect(harness.closedFrames).toHaveLength(30);
   });
 });

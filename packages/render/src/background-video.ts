@@ -2,10 +2,12 @@
  * A video background decoded frame by frame with WebCodecs.
  *
  * Rendering is not real time: the compositor asks for a frame at time `t` and
- * expects it immediately. The short source clip is therefore demuxed and fully
- * decoded when the painter is created, then replayed as a loop. Keeping the
- * decoded frames resident is what makes `paint` synchronous and free of any
- * re-decoding when the playhead moves backwards.
+ * expects it immediately. The source clip is therefore demuxed and decoded up
+ * front, then replayed as a loop. Keeping the decoded frames resident is what
+ * makes `paint` synchronous and free of any re-decoding when the playhead moves
+ * backwards — which is also why the number of frames kept is capped
+ * (`frameBudget`): past that point the loop is the beginning of the clip, not
+ * the whole of it.
  */
 
 import { createFile, DataStream, type Sample } from 'mp4box';
@@ -97,6 +99,27 @@ const H264_CODEC = /^avc[13]\./;
 
 /** A decoder may emit B-frames out of order; hold at most this many to reorder. */
 const REORDER_WINDOW = 30;
+
+/**
+ * How many decoded frames a painter may keep, and how much decoded picture
+ * that may add up to.
+ *
+ * Every frame is held in memory so `paint` can stay synchronous, so a long or a
+ * high-resolution source would otherwise be decoded in full: a five-minute
+ * 1080p clip is 9 000 frames, tens of gigabytes. Four seconds at 30 fps is the
+ * longest loop kept for a small source; the pixel ceiling keeps a 4K source to
+ * roughly twenty frames, which is a fraction of a second, but bounded.
+ */
+export const MAX_FRAMES = 120;
+const MAX_FRAME_PIXELS = 160_000_000;
+
+/** The frame budget for a source decoded at `codedWidth × codedHeight`. */
+export function frameBudget(codedWidth: number, codedHeight: number): number {
+  const pixels = codedWidth > 0 && codedHeight > 0 ? codedWidth * codedHeight : 0;
+  // An unknown size is no reason to tighten a budget nobody can check.
+  if (pixels <= 0) return MAX_FRAMES;
+  return Math.max(1, Math.min(MAX_FRAMES, Math.floor(MAX_FRAME_PIXELS / pixels)));
+}
 
 interface SourceSample {
   type: 'key' | 'delta';
@@ -238,11 +261,22 @@ function frameIndexAt(seconds: number, frames: VideoFrameLike[], loopSec: number
   return found;
 }
 
+/** A test seam: production always uses the memory budget. */
+export interface VideoPainterLimits {
+  /**
+   * Replaces the computed budget. The fixture in the tests is a fraction of a
+   * second of a 64 px picture, so reaching the cap would otherwise need a
+   * large binary file.
+   */
+  maxFrames?: number;
+}
+
 export async function createVideoPainter(
   file: Blob,
   size: Size,
   durationSec: number,
   environment: BackgroundVideoEnvironment = defaultBackgroundVideoEnvironment(),
+  limits: VideoPainterLimits = {},
 ): Promise<BackgroundPainter> {
   for (const [name, value] of [
     ['width', size.width],
@@ -293,6 +327,9 @@ export async function createVideoPainter(
     },
   });
 
+  let decoded = 0;
+  let retainedEndUs = 0;
+
   try {
     decoder.configure({
       codec: source.codec,
@@ -305,8 +342,15 @@ export async function createVideoPainter(
     // Frames past the requested video length are never shown, so do not pay to
     // decode them. A shorter source is simply looped by `paint`.
     const decodeUntilUs = Math.min(source.durationSec, durationSec) * 1_000_000;
+    const budget = Math.max(
+      1,
+      Math.floor(limits.maxFrames ?? frameBudget(source.codedWidth, source.codedHeight)),
+    );
     for (const sample of source.samples) {
       if (sample.timestampUs >= decodeUntilUs) break;
+      // The frames already decoded are the loop; going further would only cost
+      // memory that nothing on screen ever asks for.
+      if (decoded >= budget) break;
       decoder.decode(
         environment.createChunk({
           type: sample.type,
@@ -315,6 +359,8 @@ export async function createVideoPainter(
           data: sample.data,
         }),
       );
+      decoded += 1;
+      retainedEndUs = sample.timestampUs + sample.durationUs;
     }
     await decoder.flush();
     if (decodeError) throw decodeError;
@@ -332,7 +378,9 @@ export async function createVideoPainter(
     throw new Error('background-video: the decoder produced no frames');
   }
 
-  const loopSec = source.durationSec;
+  const loopSec = decoded < source.samples.length && retainedEndUs > 0
+    ? Math.min(source.durationSec, retainedEndUs / 1_000_000)
+    : source.durationSec;
 
   return {
     get ready() {
