@@ -87,6 +87,16 @@ describe('i18n', () => {
     }
   });
 
+  it('keeps catalogue strings out of HTML sinks', () => {
+    // `escapeValue: false` is safe only while nothing renders a translation as
+    // HTML. Keep that as an invariant instead of relying on a code review.
+    const dangerous = /\bdangerouslySetInnerHTML\b|\binnerHTML\b|\beval\s*\(|\bnew Function\s*\(/;
+    for (const file of sourceFiles(['apps/web/src', 'apps/web/app'])) {
+      expect(`${file}: ${dangerous.test(readFileSync(file, 'utf8'))}`).not.toMatch(/: true$/);
+    }
+    expect(readFileSync('apps/web/src/lib/i18n.ts', 'utf8')).toContain('escapeValue: false');
+  });
+
   it('follows the browser when nothing is stored', () => {
     window.localStorage.clear();
     setNavigatorLanguage('ar-EG');

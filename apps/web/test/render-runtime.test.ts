@@ -1,25 +1,32 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RenderJob } from '@quran/render';
 import { addToHistory } from '@/lib/history';
-import { resumeRender } from '@/lib/render-runtime';
+import { recoverQueue, resumeRender, startRender } from '@/lib/render-runtime';
 
-const { runNext, isBusy } = vi.hoisted(() => ({
+const { runNext, isBusy, enqueue, recover } = vi.hoisted(() => ({
   runNext: vi.fn(),
   isBusy: vi.fn(() => false),
+  enqueue: vi.fn(),
+  recover: vi.fn(),
 }));
+
+const captured: { createWorker?: (() => unknown) | undefined } = {};
 
 vi.mock('@quran/render', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@quran/render')>();
   return {
     ...actual,
     createQueue: () => ({
-      enqueue: vi.fn(),
+      enqueue,
       runNext,
-      recover: vi.fn(),
+      recover,
       isBusy,
     }),
     createRenderer: () => ({ render: vi.fn(), cancel: vi.fn() }),
-    defaultRendererEnvironment: () => ({}),
+    defaultRendererEnvironment: (createWorker: () => unknown) => {
+      captured.createWorker = createWorker;
+      return {};
+    },
   };
 });
 
@@ -53,6 +60,9 @@ function job(status: RenderJob['status']): RenderJob {
 describe('resumeRender', () => {
   beforeEach(() => {
     runNext.mockReset();
+    enqueue.mockReset();
+    recover.mockReset();
+    isBusy.mockReturnValue(false);
     vi.mocked(addToHistory).mockClear();
   });
 
@@ -89,5 +99,62 @@ describe('resumeRender', () => {
     await expect(resumeRender(job('done'))).resolves.toBeUndefined();
     expect(error).toHaveBeenCalledWith('history:', expect.any(Error));
     error.mockRestore();
+  });
+
+  it('does not start a second render while one is busy', async () => {
+    isBusy.mockReturnValue(true);
+
+    await resumeRender(job('queued'));
+
+    expect(runNext).not.toHaveBeenCalled();
+  });
+
+  it('offloads a gradient to a worker when the platform has one', async () => {
+    class FakeWorker {}
+    vi.stubGlobal('Worker', FakeWorker);
+    runNext.mockResolvedValue(null);
+
+    await resumeRender(job('queued'));
+
+    expect(captured.createWorker?.()).toBeInstanceOf(FakeWorker);
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps an imported background on the main thread', async () => {
+    class FakeWorker {}
+    vi.stubGlobal('Worker', FakeWorker);
+    runNext.mockResolvedValue(null);
+    const imported = job('queued');
+    imported.spec.backgroundSelection = { kind: 'video', assetId: 'a', name: 'fond.mp4' };
+
+    await resumeRender(imported);
+
+    // The painter and the asset bytes cannot cross the worker boundary.
+    expect(captured.createWorker?.()).toBeNull();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe('startRender and recoverQueue', () => {
+  beforeEach(() => {
+    enqueue.mockReset();
+    recover.mockReset();
+  });
+
+  it('stores the job without starting it, so the worker lives on the result page', async () => {
+    const spec = job('queued').spec;
+    enqueue.mockResolvedValue(job('queued'));
+
+    await expect(startRender(spec)).resolves.toMatchObject({ id: 'job-1' });
+    expect(enqueue).toHaveBeenCalledWith(spec);
+    expect(runNext).not.toHaveBeenCalled();
+  });
+
+  it('hands interrupted jobs back to the store on load', async () => {
+    recover.mockResolvedValue(undefined);
+
+    await recoverQueue();
+
+    expect(recover).toHaveBeenCalledOnce();
   });
 });
