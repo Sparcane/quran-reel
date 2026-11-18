@@ -808,4 +808,29 @@ describe('encodeWebCodecs', () => {
 
     expect(String(error)).toMatch(/one sample rate/);
   });
+
+  it('refuses verses recorded with different channel counts', async () => {
+    const { error } = await renderFailure(
+      planFor([
+        verse(1, { audio: audioOf(1, { channels: 1 }) }),
+        verse(1, { audio: audioOf(1, { channels: 2 }) }),
+      ]),
+    );
+
+    // The AAC config and the interleaved sample data assume one channel count
+    // for the whole track; a late change fails minutes into the encode.
+    expect(String(error)).toMatch(/one channel count/);
+  });
+
+  it('encodes silence to the end when the last verse is silent', async () => {
+    const { harness } = await render(planFor([verse(1), verse(1, { audio: null })]));
+
+    const silences = harness.audioData.filter((chunk) => chunk.isSilence());
+    // Lead-in, the gap, then the whole second of the silent last verse.
+    expect(silences.map((chunk) => chunk.timestamp)).toEqual([0, 1_800_000, 2_100_000]);
+
+    const totalFrames = harness.audioData.reduce((total, chunk) => total + chunk.numberOfFrames, 0);
+    // 3.1 s of picture: 0.8 lead-in + 1 s + 0.3 gap + 1 s.
+    expect(totalFrames).toBe(Math.round(3.1 * SAMPLE_RATE));
+  });
 });

@@ -200,6 +200,14 @@ function audioSegments(plan: EncodePlan, sampleRate: number): AudioSegment[] {
     }
   });
 
+  // A silent verse at the end, or a clip shorter than its subtitle slot, used
+  // to leave the audio track early: the last words of the video played over
+  // nothing. Fill the tail of the timeline with silence as well.
+  const endUs = Math.round(plan.timeline.totalSec * 1_000_000);
+  if (endUs > cursorUs) {
+    segments.push({ startUs: cursorUs, durationUs: endUs - cursorUs, audio: null });
+  }
+
   return segments;
 }
 

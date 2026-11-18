@@ -100,6 +100,7 @@ export function validateEncodePlan(plan: EncodePlan): void {
   }
 
   const rates = new Set<number>();
+  const channelCounts = new Set<number>();
   plan.verses.forEach((verse, index) => {
     assertFiniteNonNegative(verse.durationSec, `verse ${index} duration`);
     if (!verse.audio) return;
@@ -110,8 +111,15 @@ export function validateEncodePlan(plan: EncodePlan): void {
       throw new Error(`encoder: verse ${index} must be mono or stereo`);
     }
     rates.add(verse.audio.sampleRate);
+    channelCounts.add(verse.audio.numberOfChannels);
   });
 
+  // The AAC configuration and the interleaved sample data describe one track:
+  // switching from stereo to mono mid-plan failed in the encoder, after the
+  // user had already waited for most of the render.
+  if (channelCounts.size > 1) {
+    throw new Error('encoder: every verse must share one channel count');
+  }
   if (rates.size > 1) {
     throw new Error('encoder: every verse must share one sample rate');
   }
