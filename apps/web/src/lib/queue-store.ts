@@ -164,6 +164,9 @@ async function persistFailure(record: StoredJob, message: string): Promise<Rende
     try {
       const db = await openStudioDatabase();
       await db.put(STUDIO_JOB_STORE_NAME, failed, failed.id);
+      // The device now holds the failure; a second copy would only be a way to
+      // resurrect the old status if a later write fails.
+      memoryJobs.delete(failed.id);
     } catch {
       // The session copy already carries the failure.
     }
@@ -191,7 +194,12 @@ async function readAll(): Promise<StoredJob[]> {
   if (typeof indexedDB !== 'undefined') {
     try {
       const db = await openStudioDatabase();
-      return (await db.getAll(STUDIO_JOB_STORE_NAME)) as StoredJob[];
+      const records = (await db.getAll(STUDIO_JOB_STORE_NAME)) as StoredJob[];
+      // A write that did not fit on the device fell back to the session copy.
+      // Returning the database alone would hide that job from the queue, and
+      // the result page would wait forever on a render nothing picks up.
+      const stored = new Set(records.map((record) => record.id));
+      return [...records, ...[...memoryJobs.values()].filter((record) => !stored.has(record.id))];
     } catch {
       // Fall through to the session copy.
     }
