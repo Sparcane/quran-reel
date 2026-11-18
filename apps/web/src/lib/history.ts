@@ -7,7 +7,13 @@
  * `HistoryStore`, so the quota path is testable without a real device.
  */
 
-import { StorageQuotaError, type RenderedVideo } from '@quran/render';
+import {
+  fromStoredVideo,
+  StorageQuotaError,
+  toStoredVideo,
+  type RenderedVideo,
+  type StoredVideo,
+} from '@quran/render';
 import { openStudioDatabase, STUDIO_HISTORY_STORE_NAME } from '@/lib/storage';
 
 /** How many finished videos stay on the device unless the caller says otherwise. */
@@ -50,43 +56,17 @@ export function createMemoryHistoryStore(): HistoryStore {
   };
 }
 
-interface StoredHistoryEntry extends Omit<HistoryEntry, 'video'> {
-  bytes: ArrayBuffer;
-  mime: string;
-  durationSec: number;
-  width: number;
-  height: number;
-  container: RenderedVideo['container'];
-  videoCodec: string;
-}
+/** The flat device shape is the history metadata plus one stored video. */
+type StoredHistoryEntry = Omit<HistoryEntry, 'video'> & StoredVideo;
 
 async function toStored(entry: HistoryEntry): Promise<StoredHistoryEntry> {
   const { video, ...rest } = entry;
-  return {
-    ...rest,
-    bytes: await video.blob.arrayBuffer(),
-    mime: video.blob.type,
-    durationSec: video.durationSec,
-    width: video.width,
-    height: video.height,
-    container: video.container,
-    videoCodec: video.videoCodec,
-  };
+  return { ...rest, ...(await toStoredVideo(video)) };
 }
 
 function fromStored(record: StoredHistoryEntry): HistoryEntry {
   const { bytes, mime, durationSec, width, height, container, videoCodec, ...rest } = record;
-  return {
-    ...rest,
-    video: {
-      blob: new Blob([bytes], { type: mime }),
-      durationSec,
-      width,
-      height,
-      container,
-      videoCodec,
-    },
-  };
+  return { ...rest, video: fromStoredVideo(record) };
 }
 
 function isQuotaError(error: unknown): boolean {

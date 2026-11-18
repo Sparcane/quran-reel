@@ -11,7 +11,14 @@
  */
 
 import type { BackgroundSelection, GradientSelection } from '@quran/core';
-import { createGradientPainter, deserialiseAudio, serialiseAudio } from '@quran/render';
+import {
+  createGradientPainter,
+  deserialiseAudio,
+  fromStoredVideo,
+  serialiseAudio,
+  toStoredVideo,
+  type StoredVideo,
+} from '@quran/render';
 import type { JobStore, RenderedVideo, RenderJob, RenderSpec, WireVerseClip } from '@quran/render';
 import {
   createImportedBackground,
@@ -31,11 +38,6 @@ const DEFAULT_BACKGROUND: GradientSelection = {
 /** Audio loses its method on the way to IndexedDB, just as it does in a worker. */
 type StoredSpec = Omit<RenderSpec, 'background' | 'verses'> & { verses: WireVerseClip[] };
 
-interface StoredResult extends Omit<RenderedVideo, 'blob'> {
-  bytes: ArrayBuffer;
-  mime: string;
-}
-
 interface StoredJob {
   id: string;
   spec: StoredSpec;
@@ -45,7 +47,7 @@ interface StoredJob {
   createdAt: number;
   startedAt?: number;
   finishedAt?: number;
-  result?: StoredResult;
+  result?: StoredVideo;
 }
 
 async function toStored(job: RenderJob): Promise<StoredJob> {
@@ -56,19 +58,6 @@ async function toStored(job: RenderJob): Promise<StoredJob> {
     verses: verses.map((verse) => ({ ...verse, audio: serialiseAudio(verse.audio) })),
   };
 
-  let result: StoredResult | undefined;
-  if (job.result) {
-    result = {
-      durationSec: job.result.durationSec,
-      width: job.result.width,
-      height: job.result.height,
-      container: job.result.container,
-      videoCodec: job.result.videoCodec,
-      bytes: await job.result.blob.arrayBuffer(),
-      mime: job.result.blob.type,
-    };
-  }
-
   return {
     id: job.id,
     spec,
@@ -78,7 +67,7 @@ async function toStored(job: RenderJob): Promise<StoredJob> {
     createdAt: job.createdAt,
     startedAt: job.startedAt,
     finishedAt: job.finishedAt,
-    result,
+    result: job.result ? await toStoredVideo(job.result) : undefined,
   };
 }
 
@@ -119,17 +108,9 @@ async function fromStored(record: StoredJob, forRender = false): Promise<RenderJ
     }
   }
 
-  let result: RenderedVideo | undefined;
-  if (record.result) {
-    result = {
-      durationSec: record.result.durationSec,
-      width: record.result.width,
-      height: record.result.height,
-      container: record.result.container,
-      videoCodec: record.result.videoCodec,
-      blob: new Blob([record.result.bytes], { type: record.result.mime }),
-    };
-  }
+  const result: RenderedVideo | undefined = record.result
+    ? fromStoredVideo(record.result)
+    : undefined;
 
   return {
     id: record.id,

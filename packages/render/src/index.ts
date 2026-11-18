@@ -7,6 +7,7 @@ export * from './sink';
 export * from './muxer';
 export * from './encoder-plan';
 export * from './audio-wire';
+export * from './stored-video';
 export * from './encoder-webcodecs';
 export * from './select-encoder';
 export * from './encoder-mediarecorder';
