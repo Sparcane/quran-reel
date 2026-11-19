@@ -304,6 +304,28 @@ describe('createRenderer', () => {
     expect(kinds).toEqual(['mediarecorder']);
   });
 
+  it('uses MediaRecorder when WebCodecs has no H.264 encoder for this picture', async () => {
+    // Firefox exposes VideoEncoder but cannot encode avc1. Asking it for a
+    // worker here would fail at frame zero instead of taking the fallback.
+    const hub = workerHub({ percents: [100] });
+    const kinds: EncoderKind[] = [];
+    const renderer = createRenderer(
+      environment({
+        createWorker: hub.factory,
+        h264Supported: async () => false,
+        encode: async (kind) => {
+          kinds.push(kind);
+          return video();
+        },
+      }),
+    );
+
+    await renderer.render(spec(), () => {});
+
+    expect(kinds).toEqual(['mediarecorder']);
+    expect(hub.sent).toHaveLength(0);
+  });
+
   it('refuses a browser with no encoder at all', async () => {
     const renderer = createRenderer(
       environment({ capabilities: { ...ALL_CAPS, webCodecs: false, mediaRecorder: false } }),

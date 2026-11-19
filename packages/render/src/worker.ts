@@ -20,7 +20,9 @@ import {
 import {
   defaultEncoderEnvironment,
   encodeWebCodecs,
+  h264EncoderAvailable,
   webCodecsAvailable,
+  type VideoEncoderFactory,
 } from './encoder-webcodecs';
 import {
   defaultMediaRecorderEnvironment,
@@ -101,6 +103,11 @@ export interface RendererEnvironment {
   capabilities: RendererCapabilities;
   createSink(kind: SinkKind, name: string): Promise<OutputSink>;
   encode: RenderEncode;
+  /**
+   * Whether WebCodecs can really encode H.264 at this size. Present on the
+   * default environment; a test seam that leaves it out assumes "yes".
+   */
+  h264Supported?(plan: EncodePlan): Promise<boolean>;
   now(): number;
 }
 
@@ -237,7 +244,15 @@ export function createRenderer(
       const plan = planFromSpec(spec);
       validateEncodePlan(plan);
 
-      const kind = selectEncoder(environment.capabilities);
+      let kind = selectEncoder(environment.capabilities);
+      // Firefox exposes the WebCodecs API but has no H.264 encoder. Decide
+      // before spawning a worker: MediaRecorder cannot run in one, and asking
+      // for an unsupported codec would fail only after the job was queued.
+      if (kind === 'webcodecs' && environment.h264Supported) {
+        if (!(await environment.h264Supported(plan)) && environment.capabilities.mediaRecorder) {
+          kind = 'mediarecorder';
+        }
+      }
       if (kind === 'none') {
         throw new EncoderUnavailableError('render: no encoder is available in this browser');
       }
@@ -350,6 +365,7 @@ export function defaultRendererEnvironment(
 ): RendererEnvironment {
   const globals = globalThis as {
     showSaveFilePicker?: unknown;
+    VideoEncoder?: unknown;
   };
   const storage = typeof navigator === 'undefined' ? undefined : navigator.storage;
 
@@ -362,6 +378,15 @@ export function defaultRendererEnvironment(
       fsAccess: typeof globals.showSaveFilePicker === 'function',
     },
     createSink,
+    h264Supported: (plan) =>
+      typeof globals.VideoEncoder !== 'function'
+        ? Promise.resolve(false)
+        : h264EncoderAvailable(
+            globals.VideoEncoder as unknown as VideoEncoderFactory,
+            plan.width,
+            plan.height,
+            plan.fps,
+          ),
     encode: (kind, plan, sink, onProgress) => {
       if (kind === 'webcodecs') return encodeWebCodecs(plan, sink, onProgress);
       if (kind === 'mediarecorder') return encodeMediaRecorder(plan, sink, onProgress);

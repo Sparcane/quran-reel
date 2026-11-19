@@ -169,6 +169,48 @@ export function videoCodecCandidates(width: number, height: number, fps: 30 | 60
   return [H264_BASELINE_3_1, H264_HIGH_4_0];
 }
 
+/** The exact config the encoder asks for, shared with the pre-flight probe. */
+export function videoEncoderConfig(
+  codec: string,
+  width: number,
+  height: number,
+  fps: 30 | 60,
+): VideoEncoderConfig {
+  return {
+    codec,
+    width,
+    height,
+    bitrate: videoBitrateFor(width, height),
+    framerate: fps,
+    hardwareAcceleration: 'prefer-hardware',
+    latencyMode: 'quality',
+    avc: { format: 'avc' },
+  };
+}
+
+/**
+ * API presence is not the same as codec support: Firefox has `VideoEncoder` but
+ * no H.264 encoder. Ask the device before committing to the MP4 path so the
+ * caller can take the MediaRecorder fallback instead of failing at frame zero.
+ */
+export async function h264EncoderAvailable(
+  factory: Pick<VideoEncoderFactory, 'isConfigSupported'>,
+  width: number,
+  height: number,
+  fps: 30 | 60,
+): Promise<boolean> {
+  for (const codec of videoCodecCandidates(width, height, fps)) {
+    try {
+      if ((await factory.isConfigSupported(videoEncoderConfig(codec, width, height, fps))).supported) {
+        return true;
+      }
+    } catch {
+      // A probe that rejects a config is answering "no" for that config.
+    }
+  }
+  return false;
+}
+
 /**
  * The audio track has to line up with the picture, so the silences the timeline
  * describes are encoded too. Without them a player would play the verses back
@@ -285,16 +327,8 @@ export async function encodeWebCodecs(
   let audioEncoder: AudioEncoderLike | null = null;
   let headerWritten = false;
 
-  const videoConfigFor = (codec: string): VideoEncoderConfig => ({
-    codec,
-    width,
-    height,
-    bitrate: videoBitrateFor(width, height),
-    framerate: fps,
-    hardwareAcceleration: 'prefer-hardware',
-    latencyMode: 'quality',
-    avc: { format: 'avc' },
-  });
+  const videoConfigFor = (codec: string): VideoEncoderConfig =>
+    videoEncoderConfig(codec, width, height, fps);
 
   const audioConfig: AudioEncoderConfig = {
     codec: 'mp4a.40.2',
