@@ -1,5 +1,6 @@
 export * from './background';
 export * from './background-video';
+export * from './demux-worker';
 export * from './video-loop-window';
 export * from './types';
 export * from './text-layout';

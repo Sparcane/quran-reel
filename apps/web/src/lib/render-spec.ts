@@ -32,6 +32,7 @@ import {
 import { reciterById } from '@/lib/reciters';
 import { loadBackgroundAsset } from '@/lib/storage';
 import type { StudioSettings } from '@/lib/studio-settings';
+import { videoBackgroundEnvironment } from '@/lib/video-environment';
 
 export interface RenderSpecDeps {
   loadSurah(surah: number): Promise<SurahData>;
@@ -71,7 +72,7 @@ export function browserRenderSpecDeps(): RenderSpecDeps {
       return createImageBitmap(blob);
     },
     async createVideo(blob, size, durationSec) {
-      return createVideoPainter(blob, size, durationSec);
+      return createVideoPainter(blob, size, durationSec, videoBackgroundEnvironment());
     },
   };
 }

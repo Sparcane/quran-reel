@@ -65,12 +65,24 @@ export interface VideoDecoderFactory {
 }
 
 /**
+ * Parses a whole movie into the plain description the painter decodes.
+ *
+ * It is a seam of its own because the parser is the one piece the painter can
+ * hand to another thread: a `Blob` goes in, data comes back, and a malformed
+ * file costs a job rather than the tab. `null`-returning callers that cannot
+ * offload get `demuxMp4` on this thread.
+ */
+export type DemuxSource = (file: Blob) => Promise<DemuxedSource>;
+
+/**
  * jsdom has no codecs and no frames, so the decoder and the chunk constructor
  * sit behind one seam — the same approach the encoders use.
  */
 export interface BackgroundVideoEnvironment {
   videoDecoder: VideoDecoderFactory;
   createChunk(init: VideoChunkInit): VideoChunkLike;
+  /** Where the bytes are parsed; absent means on this thread. */
+  demuxSource?: DemuxSource;
 }
 
 /** Whether the platform can actually decode a video background. */
@@ -121,14 +133,14 @@ export function frameBudget(codedWidth: number, codedHeight: number): number {
   return Math.max(1, Math.min(MAX_FRAMES, Math.floor(MAX_FRAME_PIXELS / pixels)));
 }
 
-interface SourceSample {
+export interface SourceSample {
   type: 'key' | 'delta';
   timestampUs: number;
   durationUs: number;
   data: Uint8Array;
 }
 
-interface DemuxedSource {
+export interface DemuxedSource {
   codec: string;
   codedWidth: number;
   codedHeight: number;
@@ -189,7 +201,7 @@ function encoderDescription(
 }
 
 /** Demux the whole MP4 through mp4box, including fragmented files. */
-function demux(arrayBuffer: ArrayBuffer): DemuxedSource {
+export function demuxMp4(arrayBuffer: ArrayBuffer): DemuxedSource {
   const file = createFile();
   const extracted: Sample[] = [];
 
@@ -290,7 +302,9 @@ export async function createVideoPainter(
     throw new Error(`background-video: duration must be a positive number, got ${durationSec}`);
   }
 
-  const source = demux(await file.arrayBuffer());
+  const source = environment.demuxSource
+    ? await environment.demuxSource(file)
+    : demuxMp4(await file.arrayBuffer());
   if (!H264_CODEC.test(source.codec)) {
     throw new Error(
       `background-video: unsupported codec ${JSON.stringify(source.codec)}; only H.264 (avc1/avc3) backgrounds are supported`,

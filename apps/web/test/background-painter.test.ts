@@ -8,12 +8,16 @@ import {
   MISSING_BACKGROUND_ASSET_ERROR,
 } from '@/lib/background-painter';
 
-const { loadBackgroundAsset, createVideoPainter } = vi.hoisted(() => ({
+const { loadBackgroundAsset, createVideoPainter, ENVIRONMENT } = vi.hoisted(() => ({
   loadBackgroundAsset: vi.fn(),
   createVideoPainter: vi.fn(),
+  ENVIRONMENT: { marker: 'video environment' },
 }));
 
 vi.mock('@/lib/storage', () => ({ loadBackgroundAsset }));
+vi.mock('@/lib/video-environment', () => ({
+  videoBackgroundEnvironment: () => ENVIRONMENT,
+}));
 vi.mock('@quran/render', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@quran/render')>();
   return { ...actual, createVideoPainter };
@@ -78,7 +82,8 @@ describe('createImportedBackground', () => {
     createVideoPainter.mockResolvedValue(painter);
 
     await expect(createImportedBackground(VIDEO, SIZE, 12.5)).resolves.toBe(painter);
-    expect(createVideoPainter).toHaveBeenCalledWith(BLOB, SIZE, 12.5);
+    // The fourth argument is where the demux leaves the main thread.
+    expect(createVideoPainter).toHaveBeenCalledWith(BLOB, SIZE, 12.5, ENVIRONMENT);
   });
 
   it('never reaches a decoder when the asset is gone', async () => {

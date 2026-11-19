@@ -11,6 +11,7 @@
 import { createImagePainter, createVideoPainter, type BackgroundPainter, type Size } from '@quran/render';
 import type { ImageSelection, VideoSelection } from '@quran/core';
 import { loadBackgroundAsset } from '@/lib/storage';
+import { videoBackgroundEnvironment } from '@/lib/video-environment';
 
 export type ImportedSelection = ImageSelection | VideoSelection;
 
@@ -53,5 +54,5 @@ export async function createImportedBackground(
   if (selection.kind === 'image') {
     return createImagePainter(await createImageBitmap(asset.blob), size);
   }
-  return createVideoPainter(asset.blob, size, durationSec);
+  return createVideoPainter(asset.blob, size, durationSec, videoBackgroundEnvironment());
 }

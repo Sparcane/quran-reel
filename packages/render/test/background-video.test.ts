@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import type { PaintContext, Size } from '../src/background';
 import {
   createVideoPainter,
@@ -319,6 +319,30 @@ describe('createVideoPainter', () => {
     await expect(
       createVideoPainter(new Blob([]), SIZE, 4, makeHarness().env),
     ).rejects.toThrow(/video/i);
+  });
+
+  it('demuxes through the environment instead of reading the bytes here', async () => {
+    const harness = makeHarness();
+    const demuxSource = vi.fn(async () => ({
+      codec: 'avc1.42e01e',
+      codedWidth: 64,
+      codedHeight: 64,
+      samples: [
+        { type: 'key' as const, timestampUs: 0, durationUs: 33_000, data: Uint8Array.of(1) },
+      ],
+      durationSec: 0.033,
+    }));
+
+    // The bytes are not a movie at all: only the injected reader can succeed,
+    // which is what proves the painter did not parse them on this thread.
+    const painter = await createVideoPainter(new Blob(['pixels']), SIZE, 4, {
+      ...harness.env,
+      demuxSource,
+    });
+
+    expect(demuxSource).toHaveBeenCalledOnce();
+    expect(harness.chunks).toHaveLength(1);
+    painter.dispose();
   });
 
   it('reports a missing WebCodecs stack when there is no injected environment', () => {
