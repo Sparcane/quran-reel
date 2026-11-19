@@ -1,3 +1,4 @@
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
 test.use({ locale: 'fr-FR' });
@@ -70,6 +71,8 @@ test('report the codecs and recorders WebKit exposes', async ({ page }) => {
 
     return out;
   });
+  mkdirSync('test-results', { recursive: true });
+  writeFileSync('test-results/webkit-caps.json', JSON.stringify(report, null, 2));
   console.log('[webkit caps] ' + JSON.stringify(report, null, 2));
   expect(report).toBeTruthy();
 });
