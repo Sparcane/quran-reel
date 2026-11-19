@@ -51,8 +51,21 @@ test('a render produces a playable file on any browser with an encoder', async (
   await page.getByRole('button', { name: /Studio/ }).click();
   await page.getByRole('button', { name: /Générer/ }).click();
 
-  const download = page.waitForEvent('download', { timeout: 120_000 });
-  await page.getByRole('link', { name: /Télécharger/ }).click();
+  // Fail fast with the page's own message: a timeout on a missing link says
+  // nothing about why the render was refused.
+  await page.waitForFunction(
+    () => /Télécharger|rendu a échoué/i.test(document.body?.innerText ?? ''),
+    undefined,
+    { timeout: 120_000 },
+  );
+  if (await page.getByRole('heading', { name: /échoué/i }).count()) {
+    const text = await page.evaluate(() => document.body?.innerText ?? '');
+    throw new Error(`render failed; the result page says: ${text.slice(-1200)}`);
+  }
+
+  const link = page.getByRole('link', { name: /Télécharger/ });
+  const download = page.waitForEvent('download', { timeout: 30_000 });
+  await link.click();
   const file = await (await download).path();
   expect(file).toBeTruthy();
   const head = readFileSync(file!);
