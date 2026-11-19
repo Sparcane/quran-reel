@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import type { GradientSelection } from '@quran/core';
-import { useT } from '@/lib/i18n';
+import { useLocale, useT } from '@/lib/i18n';
 import {
   MAX_IMAGE_BYTES,
   MAX_IMAGE_PIXELS,
@@ -58,15 +58,18 @@ function sameGradient(a: GradientSelection, b: GradientSelection): boolean {
 
 export function BackgroundPicker() {
   const t = useT();
+  const locale = useLocale();
   const background = useStudioStore((state) => state.settings.background);
   const patchSettings = useStudioStore((state) => state.patchSettings);
   const fileInput = useRef<HTMLInputElement>(null);
   const [errorKey, setErrorKey] = useState<string | null>(null);
+  const [loopSec, setLoopSec] = useState<number | null>(null);
   const [importing, setImporting] = useState(false);
 
   async function importFile(file: File): Promise<void> {
     setImporting(true);
     setErrorKey(null);
+    setLoopSec(null);
     try {
       const check = await validateBackgroundFile(file);
       if (!check.ok) {
@@ -75,6 +78,9 @@ export function BackgroundPicker() {
       }
       const assetId = await saveBackgroundAsset(file, file.name);
       patchSettings({ background: { kind: check.kind, assetId, name: file.name } });
+      // A long clip is looped on the frames the renderer can hold; the user
+      // learns it while importing, not when the film comes out.
+      setLoopSec(check.kind === 'video' ? (check.loopSec ?? null) : null);
     } catch {
       // Storage refused the file (quota, private mode): say so instead of
       // silently keeping the old background.
@@ -89,6 +95,7 @@ export function BackgroundPicker() {
     if (background.kind === 'gradient') return;
     const { assetId } = background;
     patchSettings({ background: PRESETS[0].background });
+    setLoopSec(null);
     // The bytes are only kept while a draft refers to them.
     void deleteBackgroundAsset(assetId);
   }
@@ -119,6 +126,7 @@ export function BackgroundPicker() {
                 checked={checked}
                 onChange={() => {
                   setErrorKey(null);
+                  setLoopSec(null);
                   patchSettings({ background: preset });
                 }}
                 className="sr-only"
@@ -158,6 +166,20 @@ export function BackgroundPicker() {
         <p className="mt-1 text-xs text-muted">
           {t('studio.background.hint', LIMITS)}
         </p>
+        {loopSec !== null ? (
+          <p
+            role="status"
+            className="mt-2 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/70"
+          >
+            {t('studio.background.loop', {
+              // One decimal is enough; the separator follows the language and
+              // the digits stay Latin, like the limits quoted above.
+              seconds: new Intl.NumberFormat(`${locale}-u-nu-latn`, {
+                maximumFractionDigits: 1,
+              }).format(loopSec),
+            })}
+          </p>
+        ) : null}
       </div>
 
       {background.kind !== 'gradient' ? (

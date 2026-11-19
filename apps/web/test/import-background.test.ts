@@ -14,6 +14,7 @@ import {
   MAX_VIDEO_BYTES,
   validateBackgroundFile,
 } from '../src/lib/import-background';
+import { hdMovie } from './mp4-fixture';
 
 const ascii = (text: string) => [...text].map((character) => character.charCodeAt(0));
 
@@ -333,6 +334,39 @@ describe('import bounds', () => {
     await expect(
       validateBackgroundFile(new File([blobPart(bytes)], 'fond.mp4', { type: 'video/mp4' })),
     ).resolves.toEqual({ ok: false, reason: 'duration' });
+  });
+});
+
+describe('video loop notice', () => {
+  it('says how many seconds of a long clip the renderer will keep', async () => {
+    // 300 frames of 30 fps at 1080p: the pixel ceiling keeps 77 of them.
+    const check = await validateBackgroundFile(
+      new File([hdMovie(300)], 'fond.mp4', { type: 'video/mp4' }),
+    );
+
+    expect(check).toEqual({
+      ok: true,
+      kind: 'video',
+      codec: 'h264',
+      loopSec: expect.closeTo(2.569, 2),
+    });
+  });
+
+  it('says nothing about a clip the budget covers whole', async () => {
+    const check = await validateBackgroundFile(
+      new File([hdMovie(30)], 'fond.mp4', { type: 'video/mp4' }),
+    );
+
+    expect(check).toEqual({ ok: true, kind: 'video', codec: 'h264' });
+  });
+
+  it('says nothing when the index is not in the bytes it read', async () => {
+    // The existing fixtures carry no track at all: no track, no claim.
+    await expect(validateBackgroundFile(mp4File('avc1'))).resolves.toEqual({
+      ok: true,
+      kind: 'video',
+      codec: 'h264',
+    });
   });
 });
 

@@ -55,6 +55,7 @@
   "studio.background.preset.sand": "Sand",
   "studio.background.import": "Import a background",
   "studio.background.hint": "PNG, JPEG or WebP ({{imageMb}} MB max), or an H.264 MP4 of {{minutes}} min at most. The file stays on your device.",
+  "studio.background.loop": "This video will loop: to keep the rendering smooth, only its first {{seconds}} seconds are kept.",
   "studio.background.current": "Imported background: {{name}}",
   "studio.background.remove": "Remove",
   "studio.background.error.type": "That format is not supported. Pick a PNG, a JPEG, a WebP or an H.264 MP4.",

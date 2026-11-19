@@ -1,3 +1,5 @@
+import { readVideoLoopWindow } from '@quran/render';
+
 /** How many bytes from each end of the file are inspected. */
 const SNIFF_BYTES = 256 * 1024;
 
@@ -25,7 +27,13 @@ export type BackgroundFileRejection = 'type' | 'codec' | 'empty' | 'size' | 'dim
 
 export type BackgroundFileCheck =
   | { ok: true; kind: 'image' }
-  | { ok: true; kind: 'video'; codec: 'h264' }
+  | {
+      ok: true;
+      kind: 'video';
+      codec: 'h264';
+      /** Seconds of the clip the renderer will loop, when it keeps only part of it. */
+      loopSec?: number;
+    }
   | { ok: false; reason: BackgroundFileRejection };
 
 function ascii(bytes: Uint8Array, at: number, length: number): string {
@@ -270,6 +278,14 @@ export async function validateBackgroundFile(file: File): Promise<BackgroundFile
     const seconds = movieDurationSec(head) ?? (tail ? movieDurationSec(tail) : null);
     if (seconds !== null && seconds > MAX_SOURCE_SECONDS) {
       return { ok: false, reason: 'duration' };
+    }
+
+    // The renderer holds every decoded frame in memory, so it keeps only as
+    // many as the pixel budget allows and loops those. Saying it here means the
+    // user learns it from the picker, not from a finished video.
+    const loop = readVideoLoopWindow(head) ?? (tail ? readVideoLoopWindow(tail) : null);
+    if (loop?.truncated) {
+      return { ok: true, kind: 'video', codec: 'h264', loopSec: loop.loopSec };
     }
     return { ok: true, kind: 'video', codec: 'h264' };
   }

@@ -16,6 +16,7 @@ import { useStudioStore } from '../src/lib/studio-store';
 import { loadBackgroundAsset } from '../src/lib/storage';
 import { STUDIO_HANDOFF_KEY } from '../src/lib/verses';
 import { fakeAudio, fakeFetch } from './fake-audio';
+import { hdMovie } from './mp4-fixture';
 
 /** The eight bytes every PNG starts with; enough for the validator. */
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0x0d]);
@@ -230,6 +231,20 @@ describe('BackgroundPicker', () => {
     // cannot promise a limit the validator does not apply.
     expect(await screen.findByRole('alert')).toHaveTextContent(/8192/);
     expect(useStudioStore.getState().settings.background.kind).toBe('gradient');
+  });
+
+  it('tells the user how much of a long video will be looped', async () => {
+    const user = userEvent.setup();
+    render(<BackgroundPicker />);
+
+    await user.upload(
+      screen.getByLabelText('Importer un fond'),
+      new File([hdMovie(300)], 'fond.mp4', { type: 'video/mp4' }),
+    );
+
+    // 1080p keeps 77 frames: 2.6 s, said before the render rather than after.
+    expect(await screen.findByRole('status')).toHaveTextContent(/2[.,]6/);
+    expect(useStudioStore.getState().settings.background.kind).toBe('video');
   });
 
   it('drops an imported background when the user removes it', async () => {

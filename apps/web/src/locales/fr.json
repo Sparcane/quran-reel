@@ -55,6 +55,7 @@
   "studio.background.preset.sand": "Sable",
   "studio.background.import": "Importer un fond",
   "studio.background.hint": "PNG, JPEG ou WebP ({{imageMb}} Mo max), ou un MP4 en H.264 de {{minutes}} min max. Le fichier reste sur votre appareil.",
+  "studio.background.loop": "Cette vidéo sera rejouée en boucle : pour garder le rendu fluide, seules ses {{seconds}} premières secondes sont conservées.",
   "studio.background.current": "Fond importé : {{name}}",
   "studio.background.remove": "Retirer",
   "studio.background.error.type": "Ce format n'est pas pris en charge. Choisissez un PNG, un JPEG, un WebP ou un MP4 en H.264.",

@@ -55,6 +55,7 @@
   "studio.background.preset.sand": "رمل",
   "studio.background.import": "استيراد خلفية",
   "studio.background.hint": "PNG أو JPEG أو WebP (بحد أقصى {{imageMb}} ميغابايت)، أو فيديو MP4 بترميز H.264 لا يزيد عن {{minutes}} دقيقة. يبقى الملف على جهازك.",
+  "studio.background.loop": "سيُعاد تشغيل هذا الفيديو في حلقة: حفاظًا على سلاسة التصدير، تُحفظ أول {{seconds}} ثانية منه فقط.",
   "studio.background.current": "الخلفية المستوردة: {{name}}",
   "studio.background.remove": "إزالة",
   "studio.background.error.type": "هذه الصيغة غير مدعومة. اختر PNG أو JPEG أو WebP أو فيديو MP4 بترميز H.264.",
