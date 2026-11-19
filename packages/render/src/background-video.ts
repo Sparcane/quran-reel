@@ -30,6 +30,17 @@ export interface VideoFrameLike {
   close(): void;
 }
 
+/**
+ * A decoded picture the painter owns. The `VideoFrame` behind it is closed as
+ * soon as the copy is made: browsers recycle a small pool of decoder buffers,
+ * and retaining those frames instead of copying them stalls `flush()`.
+ */
+export interface OwnedFrame {
+  readonly timestamp: number;
+  readonly image: CanvasImageSource;
+  close(): void;
+}
+
 export interface VideoChunkInit {
   type: 'key' | 'delta';
   timestamp: number;
@@ -83,6 +94,8 @@ export interface BackgroundVideoEnvironment {
   createChunk(init: VideoChunkInit): VideoChunkLike;
   /** Where the bytes are parsed; absent means on this thread. */
   demuxSource?: DemuxSource;
+  /** Copy a decoder buffer into a surface we keep, then release the buffer. */
+  copyFrame(frame: VideoFrameLike): OwnedFrame;
 }
 
 /** Whether the platform can actually decode a video background. */
@@ -103,6 +116,29 @@ export function defaultBackgroundVideoEnvironment(
     videoDecoder: globals.VideoDecoder as unknown as VideoDecoderFactory,
     createChunk: (init) =>
       new (globals.EncodedVideoChunk as new (init: VideoChunkInit) => VideoChunkLike)(init),
+    copyFrame(frame) {
+      const width = frame.displayWidth || frame.displayHeight || 1;
+      const height = frame.displayHeight || frame.displayWidth || 1;
+      if (typeof OffscreenCanvas !== 'function') {
+        throw new Error('background-video: OffscreenCanvas is required to keep decoded frames');
+      }
+      const canvas = new OffscreenCanvas(width, height);
+      const context = canvas.getContext('2d');
+      if (!context) {
+        throw new Error('background-video: cannot get a 2D context for a decoded frame');
+      }
+      context.drawImage(frame as unknown as CanvasImageSource, 0, 0, width, height);
+      frame.close();
+      return {
+        timestamp: frame.timestamp,
+        image: canvas,
+        close: () => {
+          // Zeroing the surface releases the picture without waiting for GC.
+          canvas.width = 0;
+          canvas.height = 0;
+        },
+      };
+    },
   };
 }
 
@@ -116,21 +152,26 @@ const REORDER_WINDOW = 30;
  * How many decoded frames a painter may keep, and how much decoded picture
  * that may add up to.
  *
- * Every frame is held in memory so `paint` can stay synchronous, so a long or a
- * high-resolution source would otherwise be decoded in full: a five-minute
- * 1080p clip is 9 000 frames, tens of gigabytes. Four seconds at 30 fps is the
- * longest loop kept for a small source; the pixel ceiling keeps a 4K source to
- * roughly twenty frames, which is a fraction of a second, but bounded.
+ * Every retained picture is a canvas copy: four bytes per pixel, held until
+ * `dispose` so `paint` can stay synchronous without holding a decoder buffer.
+ * A long or a high-resolution source would otherwise be decoded in full: a
+ * five-minute 1080p clip is 9 000 frames, tens of gigabytes. The byte ceiling
+ * buys 120 frames of a small clip (four seconds at 30 fps), but only a short
+ * loop of a 1080p one; the picker announces that window before the render.
  */
 export const MAX_FRAMES = 120;
-const MAX_FRAME_PIXELS = 160_000_000;
+export const MAX_DECODED_BYTES = 128 * 1024 * 1024;
+const BYTES_PER_PIXEL = 4;
 
 /** The frame budget for a source decoded at `codedWidth × codedHeight`. */
 export function frameBudget(codedWidth: number, codedHeight: number): number {
   const pixels = codedWidth > 0 && codedHeight > 0 ? codedWidth * codedHeight : 0;
   // An unknown size is no reason to tighten a budget nobody can check.
   if (pixels <= 0) return MAX_FRAMES;
-  return Math.max(1, Math.min(MAX_FRAMES, Math.floor(MAX_FRAME_PIXELS / pixels)));
+  return Math.max(
+    1,
+    Math.min(MAX_FRAMES, Math.floor(MAX_DECODED_BYTES / (pixels * BYTES_PER_PIXEL))),
+  );
 }
 
 export interface SourceSample {
@@ -254,7 +295,7 @@ export function demuxMp4(arrayBuffer: ArrayBuffer): DemuxedSource {
 }
 
 /** Index of the frame covering `seconds`, looping the source as needed. */
-function frameIndexAt(seconds: number, frames: VideoFrameLike[], loopSec: number): number {
+function frameIndexAt(seconds: number, frames: readonly { timestamp: number }[], loopSec: number): number {
   const position = ((seconds % loopSec) + loopSec) % loopSec;
   const targetUs = position * 1_000_000;
 
@@ -311,8 +352,8 @@ export async function createVideoPainter(
     );
   }
 
-  const frames: VideoFrameLike[] = [];
-  const pending: VideoFrameLike[] = [];
+  const frames: OwnedFrame[] = [];
+  const pending: OwnedFrame[] = [];
   let decodeError: Error | null = null;
   let disposed = false;
   let decoder: VideoDecoderLike | undefined;
@@ -328,7 +369,10 @@ export async function createVideoPainter(
 
   decoder = new environment.videoDecoder({
     output(frame) {
-      pending.push(frame);
+      // Take the picture and hand the decoder buffer straight back. Chrome only
+      // has a handful of those buffers: retaining the decoded frames instead of
+      // copying them makes `flush()` stall.
+      pending.push(environment.copyFrame(frame));
       if (pending.length < REORDER_WINDOW) return;
       pending.sort((a, b) => a.timestamp - b.timestamp);
       // The newest third may still be overtaken by a late B-frame, so commit
@@ -403,7 +447,7 @@ export async function createVideoPainter(
     paint(ctx: PaintContext, t: number) {
       if (disposed || !Number.isFinite(t)) return;
       const frame = frames[frameIndexAt(t, frames, loopSec)];
-      ctx.drawImage(frame as unknown as CanvasImageSource, 0, 0, size.width, size.height);
+      ctx.drawImage(frame.image, 0, 0, size.width, size.height);
     },
     dispose: release,
   };

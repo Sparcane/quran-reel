@@ -109,7 +109,7 @@ function fragmented(
   return new Uint8Array([...ftyp, ...moov, ...moof]);
 }
 
-/** 1080p at 30 fps: the pixel ceiling, not the frame ceiling, decides. */
+/** 1080p at 30 fps: the byte ceiling, not the frame ceiling, decides. */
 const HD = { width: 1080, height: 1920 };
 const HD_BUDGET = frameBudget(HD.width, HD.height);
 
@@ -123,16 +123,16 @@ describe('readVideoLoopWindow', () => {
     expect(window).not.toBeNull();
     expect(window!.frames).toBe(HD_BUDGET);
     expect(window!.truncated).toBe(true);
-    // 77 frames of 1001/30 000 s each.
+    // The budget in frames of 1001/30 000 s each.
     expect(window!.loopSec).toBeCloseTo((HD_BUDGET * 1001) / 30_000, 3);
   });
 
   it('does not warn about a clip the budget covers whole', () => {
     const window = readVideoLoopWindow(
-      movie([track({ entry: videoEntry('avc1', HD.width, HD.height), runs: [[30, 1001]], timescale: 30_000 })]),
+      movie([track({ entry: videoEntry('avc1', HD.width, HD.height), runs: [[10, 1001]], timescale: 30_000 })]),
     );
 
-    expect(window).toEqual({ frames: HD_BUDGET, truncated: false, loopSec: expect.closeTo(1.001, 3) });
+    expect(window).toEqual({ frames: HD_BUDGET, truncated: false, loopSec: expect.closeTo(0.334, 3) });
   });
 
   it('follows the picture size, so a 4K source loops a fraction of a second', () => {
@@ -221,7 +221,7 @@ describe('readVideoLoopWindow', () => {
 
   it('stays silent about a fragmented file shorter than the budget', () => {
     // Nothing proves the file ends there: a later fragment may follow.
-    expect(readVideoLoopWindow(fragmented(30, 1))).toBeNull();
+    expect(readVideoLoopWindow(fragmented(10, 1))).toBeNull();
   });
 
   it('reads a real H.264 file instead of only the bytes this test builds', () => {

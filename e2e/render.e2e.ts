@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 
 // The journey follows the French labels the plan specifies. Pin the browser
 // locale so detectLocale() cannot pick the machine's default (English here).
@@ -99,6 +100,75 @@ test('parcours complet : 3 versets → MP4', async ({ page }) => {
   await page.getByRole('link', { name: /Retour au Studio/ }).click();
   await expect(page.getByRole('heading', { name: /Vidéos récentes/ })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Voir', exact: true }).first()).toBeVisible();
+
+  expect(errors).toEqual([]);
+});
+
+/**
+ * The imported background is the one journey a unit test cannot prove: WebCodecs
+ * recycles a small pool of output buffers, and the painter used to keep every
+ * VideoFrame open — the decoder then stopped without ever raising an error. Build
+ * a real, decodable MP4 with the app, import it back, and render a second video.
+ */
+test('un fond vidéo importé est décodé puis rendu à nouveau', async ({ page }, testInfo) => {
+  const errors: string[] = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  // A video background renders on the main thread, where headless Chrome
+  // exposes showSaveFilePicker but cannot answer it. Let the sink choose OPFS
+  // instead, as it already does inside the render worker.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true });
+  });
+  await page.route('https://everyayah.com/**', (route) =>
+    route.fulfill({
+      status: 200,
+      headers: {
+        'content-type': 'audio/wav',
+        'access-control-allow-origin': '*',
+      },
+      body: silentWav(0.5),
+    }),
+  );
+
+  // First render: a gradient, whose output is a real decodable H.264 file.
+  await page.goto('/bibliotheque/');
+  await page.getByLabel('Rechercher une sourate').fill('yassin');
+  await page.getByRole('link', { name: /Yâ-Sîn/ }).click();
+  await page.getByLabel('Sélectionner le verset 1', { exact: true }).check();
+  await page.getByLabel('Sélectionner le verset 2', { exact: true }).check();
+  await page.getByRole('button', { name: /Studio/ }).click();
+  await page.getByLabel('Format 9:16').check();
+  await page.getByRole('button', { name: /Générer/ }).click();
+
+  const firstDownload = page.waitForEvent('download', { timeout: 120_000 });
+  await page.getByRole('link', { name: /Télécharger/ }).click();
+  const background = path.join(testInfo.outputDir, 'fond.mp4');
+  await (await firstDownload).saveAs(background);
+  expect(readFileSync(background).toString('ascii', 4, 8)).toBe('ftyp');
+
+  // The selection and the format survive the reload: the store persists them.
+  await page.goto('/studio/');
+  await page.locator('#studio-background-file').setInputFiles(background);
+  await expect(page.getByText(/Fond importé/)).toBeVisible();
+  await page.getByRole('button', { name: /Générer/ }).click();
+
+  const secondDownload = page.waitForEvent('download', { timeout: 120_000 });
+  await page.getByRole('link', { name: /Télécharger/ }).click();
+  const second = await (await secondDownload).path();
+  expect(second).toBeTruthy();
+  expect(readFileSync(second!).toString('ascii', 4, 8)).toBe('ftyp');
+
+  const player = page.locator('video');
+  await player.evaluate((element: HTMLVideoElement) => {
+    element.muted = true;
+    return element.play();
+  });
+  await page.waitForFunction(
+    () => ((document.querySelector('video') as HTMLVideoElement | null)?.currentTime ?? 0) > 0,
+    undefined,
+    { timeout: 10_000 },
+  );
+  expect(await player.evaluate((element: HTMLVideoElement) => element.error?.message ?? '')).toBe('');
 
   expect(errors).toEqual([]);
 });

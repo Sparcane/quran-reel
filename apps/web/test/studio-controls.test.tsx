@@ -242,8 +242,8 @@ describe('BackgroundPicker', () => {
       new File([hdMovie(300)], 'fond.mp4', { type: 'video/mp4' }),
     );
 
-    // 1080p keeps 77 frames: 2.6 s, said before the render rather than after.
-    expect(await screen.findByRole('status')).toHaveTextContent(/2[.,]6/);
+    // 1080p keeps 16 frames: 0.5 s, said before the render rather than after.
+    expect(await screen.findByRole('status')).toHaveTextContent(/0[.,]5/);
     expect(useStudioStore.getState().settings.background.kind).toBe('video');
   });
 

@@ -339,7 +339,7 @@ describe('import bounds', () => {
 
 describe('video loop notice', () => {
   it('says how many seconds of a long clip the renderer will keep', async () => {
-    // 300 frames of 30 fps at 1080p: the pixel ceiling keeps 77 of them.
+    // 300 frames of 30 fps at 1080p: the picture budget keeps 16 of them.
     const check = await validateBackgroundFile(
       new File([hdMovie(300)], 'fond.mp4', { type: 'video/mp4' }),
     );
@@ -348,13 +348,13 @@ describe('video loop notice', () => {
       ok: true,
       kind: 'video',
       codec: 'h264',
-      loopSec: expect.closeTo(2.569, 2),
+      loopSec: expect.closeTo(0.534, 2),
     });
   });
 
   it('says nothing about a clip the budget covers whole', async () => {
     const check = await validateBackgroundFile(
-      new File([hdMovie(30)], 'fond.mp4', { type: 'video/mp4' }),
+      new File([hdMovie(10)], 'fond.mp4', { type: 'video/mp4' }),
     );
 
     expect(check).toEqual({ ok: true, kind: 'video', codec: 'h264' });

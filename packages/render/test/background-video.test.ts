@@ -8,6 +8,7 @@ import {
   frameBudget,
   MAX_FRAMES,
   type BackgroundVideoEnvironment,
+  type VideoChunkInit,
   type VideoChunkLike,
   type VideoDecoderConfigLike,
   type VideoDecoderInitLike,
@@ -37,12 +38,21 @@ interface FakeFrame extends VideoFrameLike {
   closed: boolean;
 }
 
+interface FakeCopy {
+  readonly timestamp: number;
+  readonly image: { readonly mark: number };
+  closed: boolean;
+  close(): void;
+}
+
 interface Harness {
   env: BackgroundVideoEnvironment;
   configs: VideoDecoderConfigLike[];
   chunks: VideoChunkLike[];
   frames: FakeFrame[];
   closedFrames: FakeFrame[];
+  copies: FakeCopy[];
+  closedCopies: FakeCopy[];
   decoderClosed: boolean;
   failWith: Error | null;
 }
@@ -58,6 +68,8 @@ function makeHarness(): Harness {
   const chunks: VideoChunkLike[] = [];
   const frames: FakeFrame[] = [];
   const closedFrames: FakeFrame[] = [];
+  const copies: FakeCopy[] = [];
+  const closedCopies: FakeCopy[] = [];
   let decoderClosed = false;
   let failWith: Error | null = null;
   let pending = 0;
@@ -111,23 +123,43 @@ function makeHarness(): Harness {
     }
   }
 
-  return {
-    env: {
-      videoDecoder: FakeVideoDecoder,
-      createChunk: (init) => ({
-        type: init.type,
-        timestamp: init.timestamp,
-        duration: init.duration,
-        byteLength: init.data.byteLength,
-        copyTo(destination: Uint8Array): void {
-          destination.set(init.data.subarray(0, destination.length));
+  const env = {
+    videoDecoder: FakeVideoDecoder,
+    createChunk: (init: VideoChunkInit) => ({
+      type: init.type,
+      timestamp: init.timestamp,
+      duration: init.duration,
+      byteLength: init.data.byteLength,
+      copyTo(destination: Uint8Array): void {
+        destination.set(init.data.subarray(0, destination.length));
+      },
+    }),
+    // What the real environment does: take an owned copy and free the decoder
+    // buffer at once, so its small pool keeps rotating.
+    copyFrame(frame: FakeFrame): FakeCopy {
+      const copy: FakeCopy = {
+        timestamp: frame.timestamp,
+        image: { mark: frame.mark },
+        closed: false,
+        close() {
+          this.closed = true;
+          closedCopies.push(this);
         },
-      }),
+      };
+      copies.push(copy);
+      frame.close();
+      return copy;
     },
+  };
+
+  return {
+    env: env as unknown as BackgroundVideoEnvironment,
     configs,
     chunks,
     frames,
     closedFrames,
+    copies,
+    closedCopies,
     get decoderClosed() {
       return decoderClosed;
     },
@@ -187,6 +219,55 @@ describe('createVideoPainter', () => {
     expect(draws[0].frame.mark).toBe(0);
     expect(draws[1].frame.mark).toBe(60);
     expect(draws[0].frame).not.toBe(draws[1].frame);
+  });
+
+  it('copies every decoded frame into an owned surface and frees the decoder buffer at once', async () => {
+    const harness = makeHarness();
+    const painter = await createVideoPainter(
+      fixture('background.h264.mp4'),
+      SIZE,
+      4,
+      harness.env,
+    );
+
+    expect(harness.copies).toHaveLength(120);
+    // A real decoder stops pulling input once too many frames stay open.
+    expect(harness.frames.every((frame) => frame.closed)).toBe(true);
+
+    const { ctx, draws } = makePaintContext();
+    painter.paint(ctx, 2);
+    expect(draws[0].frame.mark).toBe(60);
+
+    painter.dispose();
+    expect(harness.closedCopies).toHaveLength(120);
+  });
+
+  it('bounds the picture bytes it keeps, not just the number of frames', async () => {
+    const harness = makeHarness();
+    const painter = await createVideoPainter(
+      new Blob(['movie']),
+      SIZE,
+      3,
+      {
+        ...harness.env,
+        demuxSource: async () => ({
+          codec: 'avc1.42e01e',
+          codedWidth: 1920,
+          codedHeight: 1080,
+          samples: Array.from({ length: 90 }, (_, index) => ({
+            type: 'key' as const,
+            timestampUs: index * 33_000,
+            durationUs: 33_000,
+            data: Uint8Array.of(1),
+          })),
+          durationSec: 3,
+        }),
+      },
+    );
+
+    expect(harness.copies).toHaveLength(frameBudget(1920, 1080));
+    expect(harness.copies.length).toBeLessThan(MAX_FRAMES);
+    painter.dispose();
   });
 
   it('configures the decoder with the codec, size and avcC description', async () => {
