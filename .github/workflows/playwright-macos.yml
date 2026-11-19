@@ -1,0 +1,41 @@
+name: Playwright on macOS (WebKit)
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  webkit:
+    name: WebKit render
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install WebKit
+        run: npx playwright install --with-deps webkit
+
+      # The Playwright webServer builds the static export before serving it.
+      - name: Render and play the video in WebKit
+        run: npx playwright test --config=playwright.webkit.config.ts
+
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webkit-test-results
+          path: test-results/
+          retention-days: 7
