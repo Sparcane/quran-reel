@@ -8,7 +8,7 @@ import base from './playwright.config';
  */
 export default defineConfig({
   ...base,
-  testMatch: '**/fallback.e2e.ts',
+  testMatch: ['**/fallback.e2e.ts', '**/webkit-probe.e2e.ts'],
   use: { ...base.use, channel: undefined },
   projects: [{ name: 'webkit', use: { ...devices['Desktop Safari'], channel: undefined } }],
 });
