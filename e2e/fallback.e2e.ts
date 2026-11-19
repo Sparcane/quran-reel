@@ -31,6 +31,11 @@ function silentWav(durationSec: number, rate = 8_000): Buffer {
 test('a render produces a playable file on any browser with an encoder', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  // MediaRecorder renders on the main thread, where Chromium advertises
+  // showSaveFilePicker but headless cannot answer it. Let the sink use OPFS.
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'showSaveFilePicker', { value: undefined, configurable: true });
+  });
   await page.route('https://everyayah.com/**', (route) =>
     route.fulfill({
       status: 200,
