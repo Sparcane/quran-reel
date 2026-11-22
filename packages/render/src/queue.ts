@@ -170,6 +170,9 @@ export function createQueue(store: JobStore, options: QueueOptions = {}): Render
             result,
           });
         } catch (error) {
+          // Keep the full stack in the console: the stored message is what the
+          // user sees, but a DOMException message alone hides its origin.
+          console.error('render:', error);
           const current = await store.get(running.id);
           if (current?.status === 'cancelled' || error instanceof RenderCancelledError) {
             return await settle(running, {
