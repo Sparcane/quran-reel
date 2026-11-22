@@ -513,9 +513,18 @@ la suite L12 reste verte (501 tests, typecheck, lint, build 122 pages, Playwrigh
 vérification périodique : un nouvel avis peut réouvrir S4. Le workflow macOS est vert sur `main`.
 
 **Vérification finale** : 506 tests unitaires (48 fichiers), typecheck, lint, Playwright Chrome 5/5,
-Firefox + Chromium 2/2, WebKit macOS 2/2 sur le runner GitHub, `npm audit` à 0. Les documents
-(`AUDIT_REPORT.md`, `REFACTOR_PROMPT.md`, `AGENTS.md`, `select-model.ps1`) et la modification locale
-de `.gitignore` restent hors du dépôt, comme convenu.
+Firefox + Chromium 2/2, WebKit macOS 2/2 sur le runner GitHub, `npm audit` à 0.
+
+**Appareil physique** : parcours complet exécuté sur un **Galaxy S9+ (SM-G965U, Android 10,
+Chrome 157)** relié en USB, via `adb reverse` pour le serveur local et `adb forward` vers le socket
+CDP de Chrome. Résultat : rendu MP4 1080×1920 de 2,1 s, vidéo lue sur l'appareil (`currentTime > 0`,
+aucune erreur du lecteur), page de résultat et bouton de téléchargement présents, zéro erreur JS.
+L'appareil n'expose ni WebCodecs ni OPFS et n'est pas en contexte sûr : le rendu a donc emprunté le
+repli `MediaRecorder` + sink mémoire — exactement les chemins corrigés plus haut. Le script
+reproductible est `e2e/device-test.cjs` (prérequis `adb` documentés dans son en-tête).
+
+Les documents (`AUDIT_REPORT.md`, `REFACTOR_PROMPT.md`, `AGENTS.md`, `select-model.ps1`) sont
+désormais publiés dans le dépôt, ainsi que la règle `.gitignore` pour `graphify-out/`.
 
 **Risques connus de l'audit lui-même** : `apps/web/src/components/studio/*` n'a été lu qu'en
 survol (les composants ne portent pas les défauts trouvés). WebKit a été installé depuis et vérifié
