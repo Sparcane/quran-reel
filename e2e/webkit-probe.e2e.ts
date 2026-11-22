@@ -81,6 +81,26 @@ test('report the codecs and recorders WebKit exposes', async ({ page }) => {
       return state;
     });
 
+    await probe('AudioContext 8000', () =>
+      typeof AudioContext === 'function' ? new AudioContext({ sampleRate: 8_000 }).state : 'no AudioContext',
+    );
+    await probe('MediaRecorder full options + timeslice', () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      canvas.getContext('2d');
+      const stream = canvas.captureStream(30);
+      const recorder = new MediaRecorder(stream, {
+        mimeType: 'video/mp4;codecs=avc1.42001f,mp4a.40.2',
+        videoBitsPerSecond: 6_000_000,
+        audioBitsPerSecond: 128_000,
+      });
+      recorder.start(1_000);
+      const state = recorder.state;
+      recorder.stop();
+      return state;
+    });
+
     return out;
   });
   mkdirSync('test-results', { recursive: true });

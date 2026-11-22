@@ -209,7 +209,14 @@ export function defaultMediaRecorderEnvironment(): MediaRecorderEnvironment {
       return canvas as unknown as RecordableCanvas;
     },
     createAudioContext(sampleRate) {
-      return new AudioContextClass({ sampleRate }) as unknown as AudioContextLike;
+      // Safari rejects some explicit rates (for example the 8 kHz of a test
+      // WAV) with a generic UnknownError. A buffer carries its own rate, so
+      // the context is free to run at the device's rate instead.
+      try {
+        return new AudioContextClass({ sampleRate }) as unknown as AudioContextLike;
+      } catch {
+        return new AudioContextClass() as unknown as AudioContextLike;
+      }
     },
     MediaRecorder: Recorder,
     isTypeSupported(type) {
