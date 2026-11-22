@@ -13,3 +13,6 @@ data/source/*.txt
 data/source/*.json
 !data/source/ATTRIBUTION.md
 !data/source/TRANSLATIONS.md
+
+# Graphify generated artifacts
+graphify-out/
