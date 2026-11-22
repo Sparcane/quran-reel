@@ -265,4 +265,21 @@ describe('createSink', () => {
   it('refuses an empty file name', async () => {
     await expect(createSink('memory', '  ')).rejects.toThrow(/name/);
   });
+
+  it('renders in memory when the browser exposes OPFS but refuses to open it', async () => {
+    // WebKit has navigator.storage.getDirectory but calling it throws a
+    // generic UnknownError in some sandboxed contexts.
+    Object.defineProperty(navigator, 'storage', {
+      configurable: true,
+      value: {
+        getDirectory: async () => {
+          throw new Error('UnknownError: The operation failed for an unknown transient reason');
+        },
+      },
+    });
+
+    const sink = await createSink('opfs', 'render.mp4');
+    await sink.write(new Uint8Array([1, 2, 3]));
+    expect(await bytes(await sink.finalize())).toEqual([1, 2, 3]);
+  });
 });

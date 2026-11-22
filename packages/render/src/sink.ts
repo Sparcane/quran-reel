@@ -256,7 +256,16 @@ export async function createSink(kind: SinkKind, name: string): Promise<OutputSi
     case 'memory':
       return createMemorySink();
     case 'opfs':
-      return createOpfsSink(name.trim());
+      try {
+        return await createOpfsSink(name.trim());
+      } catch (error) {
+        // Absence of the API is a caller mistake (pickSinkKind would not have
+        // chosen it), so keep that error. A present-but-refusing API is what
+        // WebKit does in sandboxed contexts: render in memory instead.
+        if (error instanceof Error && /OPFS is not available/.test(error.message)) throw error;
+        console.warn('sink: OPFS could not be opened, rendering in memory', error);
+        return createMemorySink();
+      }
     case 'fs-access':
       return createFsAccessSink(name.trim());
   }
