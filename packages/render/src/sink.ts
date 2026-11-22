@@ -59,9 +59,12 @@ export function pickSinkKind(maxBytes: number, caps: SinkCapabilities): SinkKind
   if (!Number.isFinite(maxBytes) || maxBytes < 0) {
     throw new Error(`sink: maxBytes must be a finite, non-negative number, got ${maxBytes}`);
   }
+  // A file that fits in the memory ceiling does not need a save dialog or a
+  // device quota: those fail on long-but-small renders and on WebKit sandboxes.
+  if (maxBytes <= MEMORY_LIMIT_BYTES) return 'memory';
   if (caps.fsAccess) return 'fs-access';
   if (caps.opfs) return 'opfs';
-  return maxBytes > MEMORY_LIMIT_BYTES ? 'fs-access' : 'memory';
+  return 'fs-access';
 }
 
 interface WritableStreamLike {

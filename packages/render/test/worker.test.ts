@@ -204,7 +204,7 @@ describe('createRenderer', () => {
     expect(seen.every((value, index) => index === 0 || value >= seen[index - 1])).toBe(true);
     expect(result).toMatchObject({ container: 'mp4', videoCodec: 'avc1', durationSec: 2 });
     expect(hub.sent).toHaveLength(1);
-    expect(hub.sent[0]).toMatchObject({ kind: 'render', sinkKind: 'opfs' });
+    expect(hub.sent[0]).toMatchObject({ kind: 'render', sinkKind: 'memory' });
     expect((hub.sent[0] as RenderWorkerRequest).plan.timeline.entries).toHaveLength(1);
   });
 
@@ -222,7 +222,7 @@ describe('createRenderer', () => {
 
     await renderer.render(spec(), () => {});
 
-    expect(hub.sent[0]).toMatchObject({ sinkKind: 'opfs' });
+    expect(hub.sent[0]).toMatchObject({ sinkKind: 'memory' });
   });
 
   it('refuses a video over 900 seconds before starting a worker', async () => {
@@ -410,7 +410,7 @@ describe('createRenderer', () => {
 
     await renderer.render(spec(), () => {});
 
-    expect(kinds).toEqual(['opfs']);
+    expect(kinds).toEqual(['memory']);
   });
 });
 

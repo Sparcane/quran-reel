@@ -81,15 +81,18 @@ async function readAll(sink: OutputSink): Promise<number[]> {
 
 describe('pickSinkKind', () => {
   it('writes somewhere the size allows', () => {
-    expect(pickSinkKind(50_000_000, { opfs: true, fsAccess: true })).toBe('fs-access');
-    expect(pickSinkKind(50_000_000, { opfs: true, fsAccess: false })).toBe('opfs');
+    // Below the memory ceiling, keep the whole file in memory: no save dialog,
+    // no device quota, no partial file to clean up.
+    expect(pickSinkKind(50_000_000, { opfs: true, fsAccess: true })).toBe('memory');
+    expect(pickSinkKind(50_000_000, { opfs: true, fsAccess: false })).toBe('memory');
     expect(pickSinkKind(10_000_000, { opfs: false, fsAccess: false })).toBe('memory');
+    expect(pickSinkKind(64 * 1024 * 1024, { opfs: true, fsAccess: true })).toBe('memory');
   });
 
-  it('falls back to a save prompt rather than a doomed allocation above 64 MB', () => {
+  it('streams to disk only above the memory ceiling', () => {
+    expect(pickSinkKind(64 * 1024 * 1024 + 1, { opfs: true, fsAccess: true })).toBe('fs-access');
+    expect(pickSinkKind(64 * 1024 * 1024 + 1, { opfs: true, fsAccess: false })).toBe('opfs');
     expect(pickSinkKind(900_000_000, { opfs: false, fsAccess: false })).toBe('fs-access');
-    expect(pickSinkKind(64 * 1024 * 1024 + 1, { opfs: false, fsAccess: false })).toBe('fs-access');
-    expect(pickSinkKind(64 * 1024 * 1024, { opfs: false, fsAccess: false })).toBe('memory');
   });
 
   it('refuses a size that cannot exist', () => {

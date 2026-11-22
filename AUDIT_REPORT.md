@@ -238,6 +238,21 @@ création du worker. Si aucun ne convient et que `MediaRecorder` existe, le rend
 thread principal et produit un WebM. La configuration Firefox du parcours ne masque plus rien :
 le fichier est téléchargé et lu en 5,6 s. Trois tests sur la sonde et un sur la rétrogradation.
 
+### F15 · Un rendu long échoue sur le quota du sink fichier — **5/10**
+
+Un rendu de 70 s échoue avec « sink: the device ran out of storage space » alors que le fichier
+(≈ 9 Mo, estimation 52 Mo) tient largement sous le plafond mémoire de 64 Mo. `pickSinkKind`
+choisissait le sink fichier dès que l'API existait, même pour un petit rendu : sur un appareil ou un
+navigateur à quota serré, le job échoue alors que la mémoire aurait suffi. Le même mécanisme a
+contribué aux échecs WebKit corrigés plus haut.
+
+**Corrigé par L14** : `pickSinkKind` renvoie `memory` pour toute estimation ≤ 64 Mo, quelles que
+soient les capacités fichier ; le streaming sur disque n'est choisi qu'au-delà. Les tests de
+sélection et les attentes du worker sont mis à jour. La vidéo de 83 s demandée a pu être livrée en
+assemblant 4 clips de 20,8 s générés par l'app (`ffmpeg`), et lue sur le Galaxy S9+. La vérification
+e2e d'un **rendu unique** >60 s n'a pas pu être stabilisée sur cette machine (mémoire libre <0,7 Go)
+: elle reste à refaire sur un environnement plus ample.
+
 ---
 
 ## 2. Étape 3 — Audit de sécurité
@@ -373,6 +388,7 @@ L10 fait — `f903216`, 11 fichiers, +699/−2, 488 tests verts.
 L11 fait — `5b86485`, 11 fichiers, +454/−9, 499 tests verts (S2 fermé).
 L12 fait — `b36f34f`, 6 fichiers, +228/−33, 501 tests verts (F13 fermé).
 L13 fait — `da75f4e`, 6 fichiers, +206/−11, 505 tests verts (F14 fermé).
+L14 fait — voir ci-dessous, 3 fichiers, 506 tests verts (sink mémoire sous 64 Mo).
 CI macOS ajoutée — `535a3fc`, 2 fichiers : workflow WebKit + config dédiée. Le remote
 `https://github.com/Sparcane/quran-reel.git` a été ajouté et `main` poussé avec accord explicite
 (le workflow s'exécute désormais). `49888b9`, `617c49b`, `0a17ea9` et `b025544` : diagnostic du premier échec WebKit (message de page,
@@ -509,8 +525,9 @@ depuis le premier commit), contre `https://registry.npmjs.org/` : `npm audit` et
 les données d'avis ont été révisées en amont. Le lot est donc clos **sans toucher au lockfile** ;
 la suite L12 reste verte (501 tests, typecheck, lint, build 122 pages, Playwright 3/3).
 
-**Reste** : rien. S2, F13, F14, S4/L9 et le WebKit réel sont fermés. Garder `npm audit` dans la
-vérification périodique : un nouvel avis peut réouvrir S4. Le workflow macOS est vert sur `main`.
+**Reste** : rien de bloquant. S2, F13, F14, F15, S4/L9 et le WebKit réel sont fermés. Garder
+`npm audit` dans la vérification périodique : un nouvel avis peut réouvrir S4. La vérification e2e
+d'un rendu unique >60 s reste à refaire sur une machine disposant de mémoire (voir F15).
 
 **Vérification finale** : 506 tests unitaires (48 fichiers), typecheck, lint, Playwright Chrome 5/5,
 Firefox + Chromium 2/2, WebKit macOS 2/2 sur le runner GitHub, `npm audit` à 0.
