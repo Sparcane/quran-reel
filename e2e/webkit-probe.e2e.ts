@@ -33,6 +33,18 @@ test('report the codecs and recorders WebKit exposes', async ({ page }) => {
         ? await VideoEncoder.isConfigSupported({ codec: 'avc1.42001f', width: 1080, height: 1920, bitrate: 6_000_000, framerate: 30 })
         : 'no VideoEncoder',
     );
+    // The exact config the app asks for: these extra fields are what L13's
+    // pre-flight check probes, not the simpler one used just above.
+    await probe('video exact app config', async () =>
+      typeof VideoEncoder === 'function'
+        ? await VideoEncoder.isConfigSupported({
+            codec: 'avc1.42001f', width: 1080, height: 1920,
+            bitrate: 6_000_000, framerate: 30,
+            hardwareAcceleration: 'prefer-hardware', latencyMode: 'quality',
+            avc: { format: 'avc' },
+          })
+        : 'no VideoEncoder',
+    );
     await probe('audio mp4a.40.2', async () =>
       typeof AudioEncoder === 'function'
         ? await AudioEncoder.isConfigSupported({ codec: 'mp4a.40.2', sampleRate: 48_000, numberOfChannels: 2, bitrate: 128_000 })

@@ -31,6 +31,21 @@ function silentWav(durationSec: number, rate = 8_000): Buffer {
 test('a render produces a playable file on any browser with an encoder', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() !== 'error') return;
+    // Static exports prefetch a dynamic route's RSC payload: a harmless 404.
+    if (/__next\..*__PAGE__\.txt/.test(message.location().url)) return;
+    errors.push('console: ' + message.text());
+  });
+  // Diagnostic: on WebKit, force the MediaRecorder path. If the render then
+  // succeeds, the failure is in the worker/WebCodecs path, not in the codec.
+  if (test.info().project.name === 'webkit') {
+    await page.addInitScript(() => {
+      for (const name of ['VideoEncoder', 'AudioEncoder']) {
+        Object.defineProperty(window, name, { value: undefined, configurable: true });
+      }
+    });
+  }
   // MediaRecorder renders on the main thread, where Chromium advertises
   // showSaveFilePicker but headless cannot answer it. Let the sink use OPFS.
   await page.addInitScript(() => {
@@ -60,7 +75,9 @@ test('a render produces a playable file on any browser with an encoder', async (
   );
   if (await page.getByRole('heading', { name: /échoué/i }).count()) {
     const text = await page.evaluate(() => document.body?.innerText ?? '');
-    throw new Error(`render failed; the result page says: ${text.slice(-1200)}`);
+    throw new Error(
+      `render failed; the result page says: ${text.slice(-1200)}\nconsole: ${errors.slice(-5).join(' | ')}`,
+    );
   }
 
   const link = page.getByRole('link', { name: /Télécharger/ });
