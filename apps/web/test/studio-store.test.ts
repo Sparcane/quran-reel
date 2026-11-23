@@ -6,6 +6,7 @@ import {
   clampStudioSettings,
 } from '../src/lib/studio-settings';
 import {
+  STUDIO_STATE_VERSION,
   STUDIO_STORAGE_KEY,
   flushStudioWrites,
   loadPersistedStudio,
@@ -215,6 +216,40 @@ describe('handoff from the reader', () => {
 
     expect(adoptHandoffSelection()).toEqual([]);
     expect(useStudioStore.getState().selection).toEqual([]);
+  });
+
+  it('keeps the reader handoff when the saved draft lands after it', async () => {
+    // A phone reads its saved draft from IndexedDB, which is slower than the
+    // studio's first render. The draft must not replace the verses the reader
+    // just sent: that turned seven chosen verses into the one left over from a
+    // previous session.
+    await studioStateStorage.setItem(
+      STUDIO_STORAGE_KEY,
+      JSON.stringify({
+        version: STUDIO_STATE_VERSION,
+        state: { selection: [{ surah: 36, verse: 1 }], settings: DEFAULT_STUDIO_SETTINGS },
+      }),
+    );
+    const fresh = createStudioStore();
+    const handoff = [
+      { surah: 2, verse: 1 },
+      { surah: 2, verse: 2 },
+      { surah: 2, verse: 3 },
+      { surah: 2, verse: 4 },
+      { surah: 2, verse: 5 },
+      { surah: 2, verse: 6 },
+      { surah: 2, verse: 7 },
+    ];
+    sessionStorage.setItem(STUDIO_HANDOFF_KEY, JSON.stringify(handoff));
+    expect(fresh.persist.hasHydrated()).toBe(false);
+
+    adoptHandoffSelection(fresh);
+    await new Promise<void>((resolve) => {
+      if (fresh.persist.hasHydrated()) resolve();
+      else fresh.persist.onFinishHydration(() => resolve());
+    });
+
+    expect(fresh.getState().selection).toEqual(handoff);
   });
 });
 

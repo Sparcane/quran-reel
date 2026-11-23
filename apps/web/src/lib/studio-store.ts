@@ -70,11 +70,24 @@ export const useStudioStore = createStudioStore();
  * Takes the verses the reader sent through session storage and makes them the
  * draft. The reader deliberately posts them once: coming back to the studio
  * later must not silently replace the verses the user chose since.
+ *
+ * The saved draft is read asynchronously (IndexedDB on the web). When that read
+ * lands after this call it replaces the whole state, so the handoff is applied
+ * again once hydration finishes; otherwise a slow phone would render the draft
+ * left over from a previous session instead of the verses just chosen.
  */
-export function adoptHandoffSelection(): VerseRef[] {
+export function adoptHandoffSelection(store: StudioStore = useStudioStore): VerseRef[] {
   const handoff = readHandoffSelection();
   if (handoff.length === 0) return [];
-  useStudioStore.getState().setSelection(handoff);
   clearHandoffSelection();
+
+  const apply = () => store.getState().setSelection(handoff);
+  apply();
+  if (!store.persist.hasHydrated()) {
+    const stop = store.persist.onFinishHydration(() => {
+      stop();
+      apply();
+    });
+  }
   return handoff;
 }
