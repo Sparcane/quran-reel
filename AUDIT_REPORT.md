@@ -268,7 +268,8 @@ implémente en mémoire et fusionne à la lecture ; un store sans fast path n'é
 pourcentages entiers ; l'encodeur WebCodecs arrondit le pourcentage, comme le faisait déjà
 MediaRecorder. Preuves : rendu unique de 62 s en 20 s et de 70 s en 28 s (1080×1920, 8,4 Mo, tas
 JS 75–148 Mo), plus `e2e/long-render.e2e.ts` en garde-fou permanent, et six tests unitaires sur le
-queue et le store.
+queue et le store. Sur le Galaxy S9+ — qui crashtait avant le correctif — le même parcours rend une
+vidéo de 62,8 s en 57 s et la lit (`e2e/device-long.cjs`).
 
 ---
 
@@ -568,6 +569,11 @@ son en-tête) ; le parcours minimal est `e2e/device-test.cjs`.
 L'appareil n'expose pas `VideoEncoder` ni OPFS et n'est pas en contexte sûr : les rendus ont donc
 emprunté le repli `MediaRecorder` + sink mémoire — exactement les chemins corrigés plus haut. Le fond
 vidéo a tout de même fonctionné, `VideoDecoder` étant présent.
+
+**Rendu long sur l'appareil (après L15)** : le parcours qui faisait crasher l'onglet avant le
+correctif rend maintenant **une seule vidéo de 62,8 s en 57 s** (1080×1080, MediaRecorder), lue
+ensuite sur le téléphone (`currentTime` > 1 s, aucune erreur JavaScript). Le script reproductible est
+`e2e/device-long.cjs`.
 
 Les documents (`AUDIT_REPORT.md`, `REFACTOR_PROMPT.md`, `AGENTS.md`, `select-model.ps1`) sont
 désormais publiés dans le dépôt, ainsi que la règle `.gitignore` pour `graphify-out/`.
