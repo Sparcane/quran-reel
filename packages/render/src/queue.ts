@@ -35,6 +35,13 @@ export interface JobStore {
   list(): Promise<RenderJob[]>;
   put(job: RenderJob): Promise<void>;
   delete(id: string): Promise<void>;
+  /**
+   * Optional fast path for progress ticks. A tick arrives once per frame, and a
+   * job carries the recitation audio for the whole video: persisting each tick
+   * rewrites that audio hundreds of times and stalls the tab. A store that
+   * implements this keeps the percentage in memory instead.
+   */
+  putProgress?(id: string, percent: number): void;
 }
 
 export interface QueueOptions {
@@ -85,6 +92,11 @@ export function createMemoryJobStore(): JobStore {
     },
     async put(job) {
       jobs.set(job.id, { ...job });
+    },
+    putProgress(id, percent) {
+      const job = jobs.get(id);
+      if (!job || job.status !== 'running') return;
+      jobs.set(id, { ...job, progress: percent });
     },
     async delete(id) {
       jobs.delete(id);
@@ -152,6 +164,7 @@ export function createQueue(store: JobStore, options: QueueOptions = {}): Render
         active = { id: running.id, cancel: () => renderer.cancel() };
 
         let lastProgress = running.progress;
+        let lastPersisted = running.progress;
         try {
           const result = await renderer.render(running.spec, (progress) => {
             // A cancelled encoder can still emit one more tick before it stops.
@@ -162,6 +175,15 @@ export function createQueue(store: JobStore, options: QueueOptions = {}): Render
             lastProgress = progress.percent;
             // Progress is best-effort: a lost update costs a stale percentage,
             // never the render itself.
+            if (store.putProgress) {
+              store.putProgress(running.id, progress.percent);
+              return;
+            }
+            // A store without the fast path still gets every whole percentage,
+            // but not one write per frame.
+            const whole = Math.floor(progress.percent);
+            if (whole <= lastPersisted) return;
+            lastPersisted = whole;
             void store.put({ ...running, progress: progress.percent });
           });
           return await settle(running, {

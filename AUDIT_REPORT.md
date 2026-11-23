@@ -249,9 +249,26 @@ contribué aux échecs WebKit corrigés plus haut.
 **Corrigé par L14** : `pickSinkKind` renvoie `memory` pour toute estimation ≤ 64 Mo, quelles que
 soient les capacités fichier ; le streaming sur disque n'est choisi qu'au-delà. Les tests de
 sélection et les attentes du worker sont mis à jour. La vidéo de 83 s demandée a pu être livrée en
-assemblant 4 clips de 20,8 s générés par l'app (`ffmpeg`), et lue sur le Galaxy S9+. La vérification
-e2e d'un **rendu unique** >60 s n'a pas pu être stabilisée sur cette machine (mémoire libre <0,7 Go)
-: elle reste à refaire sur un environnement plus ample.
+assemblant 4 clips de 20,8 s générés par l'app (`ffmpeg`), et lue sur le Galaxy S9+. Le blocage qui
+subsistait au-delà de ~25 s avait une autre cause, traitée en F16.
+
+### F16 · Chaque image réécrivait toute la spec dans IndexedDB — **7/10**
+
+Le pourcentage de progression était fractionnaire (`0,974… %`) : différent à chaque image, donc
+jamais dédupliqué par `createQueue`. Chaque tick partait en `store.put()`, et le store web
+re-sérialise la spec entière — l'audio de récitation compris — à chaque écriture. Un rendu de 62 s
+(1884 images, ≈ 12 Mo d'audio) déclenchait ainsi des centaines de réécritures de 12 Mo : vers
+l'image 1600 le thread principal ne rendait plus la main, même `page.screenshot()` expirait, et le
+job restait indéfiniment à l'écran. C'est la cause du crash de l'onglet sur le Galaxy S9+ et des
+échecs de rendu long constatés avant L14 ; la piste mémoire de la machine n'était qu'un facteur
+aggravant.
+
+**Corrigé par L15** : `JobStore` gagne un fast path optionnel `putProgress`, que le store web
+implémente en mémoire et fusionne à la lecture ; un store sans fast path n'écrit plus qu'aux
+pourcentages entiers ; l'encodeur WebCodecs arrondit le pourcentage, comme le faisait déjà
+MediaRecorder. Preuves : rendu unique de 62 s en 20 s et de 70 s en 28 s (1080×1920, 8,4 Mo, tas
+JS 75–148 Mo), plus `e2e/long-render.e2e.ts` en garde-fou permanent, et six tests unitaires sur le
+queue et le store.
 
 ---
 
@@ -389,6 +406,8 @@ L11 fait — `5b86485`, 11 fichiers, +454/−9, 499 tests verts (S2 fermé).
 L12 fait — `b36f34f`, 6 fichiers, +228/−33, 501 tests verts (F13 fermé).
 L13 fait — `da75f4e`, 6 fichiers, +206/−11, 505 tests verts (F14 fermé).
 L14 fait — voir ci-dessous, 3 fichiers, 506 tests verts (sink mémoire sous 64 Mo).
+L15 fait — 6 fichiers, 511 tests verts : la progression ne réécrit plus la spec dans IndexedDB,
+et le rendu long passe en un seul job (F16 fermé).
 CI macOS ajoutée — `535a3fc`, 2 fichiers : workflow WebKit + config dédiée. Le remote
 `https://github.com/Sparcane/quran-reel.git` a été ajouté et `main` poussé avec accord explicite
 (le workflow s'exécute désormais). `49888b9`, `617c49b`, `0a17ea9` et `b025544` : diagnostic du premier échec WebKit (message de page,
@@ -525,12 +544,13 @@ depuis le premier commit), contre `https://registry.npmjs.org/` : `npm audit` et
 les données d'avis ont été révisées en amont. Le lot est donc clos **sans toucher au lockfile** ;
 la suite L12 reste verte (501 tests, typecheck, lint, build 122 pages, Playwright 3/3).
 
-**Reste** : rien de bloquant. S2, F13, F14, F15, S4/L9 et le WebKit réel sont fermés. Garder
-`npm audit` dans la vérification périodique : un nouvel avis peut réouvrir S4. La vérification e2e
-d'un rendu unique >60 s reste à refaire sur une machine disposant de mémoire (voir F15).
+**Reste** : rien de bloquant. S2, F13, F14, F15, F16, S4/L9 et le WebKit réel sont fermés. Garder
+`npm audit` dans la vérification périodique : un nouvel avis peut réouvrir S4. Le rendu long est
+désormais couvert par `e2e/long-render.e2e.ts`, qui produit une vidéo de plus d'une minute en un
+seul job à chaque exécution de Playwright.
 
-**Vérification finale** : 506 tests unitaires (48 fichiers), typecheck, lint, Playwright Chrome 5/5,
-Firefox + Chromium 2/2, WebKit macOS 2/2 sur le runner GitHub, `npm audit` à 0.
+**Vérification finale** : 511 tests unitaires (49 fichiers), typecheck, lint, Playwright Chrome 6/6
+(dont le rendu >60 s), Firefox + Chromium 2/2, WebKit macOS 2/2 sur le runner GitHub, `npm audit` à 0.
 
 **Appareil physique (suite poussée)** : parcours complet exécuté sur un **Galaxy S9+ (SM-G965U,
 Android 10, Chrome 157)** relié en USB, via `adb reverse` pour le serveur local et `adb forward` vers

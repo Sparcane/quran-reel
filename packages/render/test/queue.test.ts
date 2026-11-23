@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_VIDEO_SECONDS } from '@quran/core';
 import { createGradientPainter } from '../src/background';
-import { createMemoryJobStore, createQueue, type RenderJob } from '../src/queue';
+import { createMemoryJobStore, createQueue, type JobStore, type RenderJob } from '../src/queue';
 import { RenderCancelledError, type VideoRenderer } from '../src/worker';
 import type { Progress, RenderedVideo, RenderSpec, SubtitleStyle } from '../src/types';
 
@@ -240,6 +240,59 @@ describe('createQueue', () => {
 
     expect(finished?.progress).toBe(100);
     expect((await queue.getJob(job.id))?.progress).toBe(100);
+  });
+
+  it('reports every tick to a store fast path instead of rewriting the job', async () => {
+    const store = createMemoryJobStore();
+    const writes: number[] = [];
+    const ticks: number[] = [];
+    const put = store.put.bind(store);
+    store.put = async (runningJob) => {
+      if (runningJob.status === 'running') writes.push(runningJob.progress);
+      return put(runningJob);
+    };
+    store.putProgress = (_id, percent) => ticks.push(percent);
+
+    const queue = createQueue(store, { newId: () => 'ticks', now: () => 1 });
+    const job = await queue.enqueue(spec('ticks'));
+    await queue.runNext(fastRenderer());
+
+    // The job is written once when it starts running; its ticks only reach the
+    // fast path. A full write per tick would rewrite the recitation audio.
+    expect(writes).toEqual([0]);
+    expect(ticks).toEqual([40, 90]);
+    expect((await queue.getJob(job.id))?.progress).toBe(100);
+  });
+
+  it('writes a store without the fast path once per whole percent', async () => {
+    const inner = createMemoryJobStore();
+    const written: number[] = [];
+    const slowStore: JobStore = {
+      get: (id) => inner.get(id),
+      list: () => inner.list(),
+      delete: (id) => inner.delete(id),
+      async put(runningJob) {
+        if (runningJob.status === 'running') written.push(runningJob.progress);
+        await inner.put(runningJob);
+      },
+    };
+    const renderer: VideoRenderer = {
+      async render(_renderSpec, onProgress) {
+        for (const percent of [0.4, 0.9, 1.1, 1.6, 2.2]) {
+          onProgress({ frame: 1, totalFrames: 60, percent, etaSec: 1 });
+        }
+        return video('fractional');
+      },
+      cancel() {},
+    };
+
+    const queue = createQueue(slowStore, { newId: () => 'slow', now: () => 1 });
+    await queue.enqueue(spec('slow'));
+    const finished = await queue.runNext(renderer);
+
+    // Five ticks, two whole percentages: 0.4 and 0.9 stay below the first one.
+    expect(written).toEqual([0, 1.1, 2.2]);
+    expect(finished?.status).toBe('done');
   });
 
   it('stores the rendered video on a done job', async () => {

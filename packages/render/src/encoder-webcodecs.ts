@@ -355,7 +355,9 @@ export async function encodeWebCodecs(
     onProgress({
       frame,
       totalFrames,
-      percent: Math.min(100, (frame / totalFrames) * 100),
+      // Whole percentages, like the MediaRecorder path: a per-frame fraction is
+      // meaningless on screen and makes every tick look like new information.
+      percent: Math.min(100, Math.round((frame / totalFrames) * 100)),
       etaSec: Math.max(0, etaSec),
     });
   };

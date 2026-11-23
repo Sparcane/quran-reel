@@ -158,17 +158,36 @@ async function persistFailure(record: StoredJob, message: string): Promise<Rende
 /** Jobs kept for the session when the device has no usable IndexedDB. */
 const memoryJobs = new Map<string, StoredJob>();
 
+/**
+ * The percentage of each running job, kept out of IndexedDB.
+ *
+ * A job record carries the recitation audio of the whole video (about 12 MB for
+ * a minute). Progress arrives once per frame, so persisting every tick rewrote
+ * that audio hundreds of times and locked the tab; the running percentage lives
+ * here instead and is merged over the stored record when it is read.
+ */
+const liveProgress = new Map<string, number>();
+
+/** The stored record with the running percentage the queue has reported since. */
+function withLiveProgress(record: StoredJob): StoredJob {
+  const percent = liveProgress.get(record.id);
+  if (percent === undefined || percent === record.progress) return record;
+  return { ...record, progress: percent };
+}
+
 async function read(id: string): Promise<StoredJob | null> {
+  let record: StoredJob | null = null;
   if (typeof indexedDB !== 'undefined') {
     try {
       const db = await openStudioDatabase();
-      const record = (await db.get(STUDIO_JOB_STORE_NAME, id)) as StoredJob | undefined;
-      if (record) return record;
+      record = ((await db.get(STUDIO_JOB_STORE_NAME, id)) as StoredJob | undefined) ?? null;
     } catch {
       // Fall through to the session copy.
     }
   }
-  return memoryJobs.get(id) ?? null;
+  // A write that did not fit on the device lives in the session copy only.
+  const found = record ?? memoryJobs.get(id) ?? null;
+  return found ? withLiveProgress(found) : null;
 }
 
 async function readAll(): Promise<StoredJob[]> {
@@ -180,12 +199,15 @@ async function readAll(): Promise<StoredJob[]> {
       // Returning the database alone would hide that job from the queue, and
       // the result page would wait forever on a render nothing picks up.
       const stored = new Set(records.map((record) => record.id));
-      return [...records, ...[...memoryJobs.values()].filter((record) => !stored.has(record.id))];
+      return [
+        ...records,
+        ...[...memoryJobs.values()].filter((record) => !stored.has(record.id)),
+      ].map(withLiveProgress);
     } catch {
       // Fall through to the session copy.
     }
   }
-  return [...memoryJobs.values()];
+  return [...memoryJobs.values()].map(withLiveProgress);
 }
 
 export function createQueueStore(): JobStore {
@@ -205,6 +227,9 @@ export function createQueueStore(): JobStore {
     async put(job) {
       const record = await toStored(job);
       memoryJobs.delete(record.id);
+      // The record now carries the progress: a stale in-memory copy would win
+      // over it and show a percentage the job has already left behind.
+      liveProgress.delete(record.id);
       if (typeof indexedDB !== 'undefined') {
         try {
           const db = await openStudioDatabase();
@@ -217,8 +242,13 @@ export function createQueueStore(): JobStore {
       memoryJobs.set(record.id, record);
     },
 
+    putProgress(id, percent) {
+      liveProgress.set(id, percent);
+    },
+
     async delete(id) {
       memoryJobs.delete(id);
+      liveProgress.delete(id);
       if (typeof indexedDB === 'undefined') return;
       try {
         const db = await openStudioDatabase();
@@ -236,4 +266,5 @@ export const jobStore: JobStore = createQueueStore();
 /** For tests and app-wide resets; device data is untouched. */
 export function resetQueueStore(): void {
   memoryJobs.clear();
+  liveProgress.clear();
 }
