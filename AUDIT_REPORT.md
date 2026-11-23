@@ -271,6 +271,22 @@ JS 75–148 Mo), plus `e2e/long-render.e2e.ts` en garde-fou permanent, et six te
 queue et le store. Sur le Galaxy S9+ — qui crashtait avant le correctif — le même parcours rend une
 vidéo de 62,8 s en 57 s et la lit (`e2e/device-long.cjs`).
 
+### F17 · Le brouillon enregistré remplace la sélection du lecteur — **7/10**
+
+Sur le Galaxy S9+, choisir sept versets d'Al-Baqara puis « Studio » ouvrait le studio sur **un seul
+verset** — celui resté d'une session précédente — et le rendu faisait 5,4 s au lieu de 83,4 s. Le
+handoff du lecteur (`sessionStorage`, `verses.ts:59`) était bien lu et appliqué, mais le store du
+studio restaure aussi son brouillon depuis IndexedDB de façon asynchrone : sur le téléphone, cette
+restauration se terminait *après* le premier rendu du studio et réécrivait tout l'état avec l'ancien
+brouillon. Sur un profil neuf (ordinateur, contexte Playwright) le brouillon est vide, donc le défaut
+ne s'y voyait pas ; il faut un appareil déjà utilisé pour le déclencher.
+
+**Corrigé par L16** : `adoptHandoffSelection` applique le handoff immédiatement, puis de nouveau à la
+fin de l'hydratation, ce qui le fait gagner dans les deux ordres possibles. Test de course dans
+`studio-store.test.ts` (brouillon 36:1 enregistré + 7 versets envoyés → les 7 gagnent) : il échouait
+avant le correctif. Vérifié sur l'appareil : le studio affiche « 7 versets », le rendu dure 83,4 s et
+la récitation réelle est présente.
+
 ---
 
 ## 2. Étape 3 — Audit de sécurité
@@ -409,6 +425,8 @@ L13 fait — `da75f4e`, 6 fichiers, +206/−11, 505 tests verts (F14 fermé).
 L14 fait — voir ci-dessous, 3 fichiers, 506 tests verts (sink mémoire sous 64 Mo).
 L15 fait — 6 fichiers, 511 tests verts : la progression ne réécrit plus la spec dans IndexedDB,
 et le rendu long passe en un seul job (F16 fermé).
+L16 fait — 2 fichiers, 512 tests verts : le handoff du lecteur survit à la restauration asynchrone
+du brouillon (F17 fermé, reproduit puis vérifié sur le Galaxy S9+).
 CI macOS ajoutée — `535a3fc`, 2 fichiers : workflow WebKit + config dédiée. Le remote
 `https://github.com/Sparcane/quran-reel.git` a été ajouté et `main` poussé avec accord explicite
 (le workflow s'exécute désormais). `49888b9`, `617c49b`, `0a17ea9` et `b025544` : diagnostic du premier échec WebKit (message de page,
@@ -545,12 +563,12 @@ depuis le premier commit), contre `https://registry.npmjs.org/` : `npm audit` et
 les données d'avis ont été révisées en amont. Le lot est donc clos **sans toucher au lockfile** ;
 la suite L12 reste verte (501 tests, typecheck, lint, build 122 pages, Playwright 3/3).
 
-**Reste** : rien de bloquant. S2, F13, F14, F15, F16, S4/L9 et le WebKit réel sont fermés. Garder
+**Reste** : rien de bloquant. S2, F13, F14, F15, F16, F17, S4/L9 et le WebKit réel sont fermés. Garder
 `npm audit` dans la vérification périodique : un nouvel avis peut réouvrir S4. Le rendu long est
 désormais couvert par `e2e/long-render.e2e.ts`, qui produit une vidéo de plus d'une minute en un
 seul job à chaque exécution de Playwright.
 
-**Vérification finale** : 511 tests unitaires (49 fichiers), typecheck, lint, Playwright Chrome 6/6
+**Vérification finale** : 512 tests unitaires (49 fichiers), typecheck, lint, Playwright Chrome 6/6
 (dont le rendu >60 s), Firefox + Chromium 2/2, WebKit macOS 2/2 sur le runner GitHub, `npm audit` à 0.
 
 **Appareil physique (suite poussée)** : parcours complet exécuté sur un **Galaxy S9+ (SM-G965U,
@@ -574,6 +592,16 @@ vidéo a tout de même fonctionné, `VideoDecoder` étant présent.
 correctif rend maintenant **une seule vidéo de 62,8 s en 57 s** (1080×1080, MediaRecorder), lue
 ensuite sur le téléphone (`currentTime` > 1 s, aucune erreur JavaScript). Le script reproductible est
 `e2e/device-long.cjs`.
+
+**Vidéo avec son, sept versets d'Al-Baqara (après L16)** : sur le même S9+ et toujours par le repli
+MediaRecorder, l'app rend en un seul job **83,4 s en 1080×1920** (64 Mo) à partir des sept premiers
+versets, avec la récitation réelle d'Alafasy (`e2e/recitation-check.cjs`). Contrôles sur le fichier :
+piste AAC 48 kHz stéréo de 83,456 s, volume moyen −20,4 dB ; chaque verset est présent à sa position
+du montage (corrélation d'enveloppe 1,000 avec le MP3 source correspondant, converti en WAV) et le
+fichier du téléphone suit le même audio que celui rendu sur l'ordinateur (0,999 par fenêtre de 8 s).
+Lecture sur l'appareil : 01:23, versets 2 puis 3 affichés en cours de lecture. Les vidéos de test
+précédentes étaient muettes parce que les parcours Playwright injectent un WAV silencieux à la place
+d'EveryAyah — un choix de test, pas un défaut de l'app.
 
 Les documents (`AUDIT_REPORT.md`, `REFACTOR_PROMPT.md`, `AGENTS.md`, `select-model.ps1`) sont
 désormais publiés dans le dépôt, ainsi que la règle `.gitignore` pour `graphify-out/`.
